@@ -1,0 +1,56 @@
+/* Base theme styles */
+:root {
+  --primary-gradient: linear-gradient(to right bottom, #2563eb, #1d4ed8);
+  --secondary-gradient: linear-gradient(to right bottom, #3b82f6, #2563eb);
+  --accent-gradient: linear-gradient(to right bottom, #60a5fa, #3b82f6);
+  
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 500ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Apply consistent styling */
+.app-container {
+  @apply min-h-screen bg-gray-50;
+}
+
+.card {
+  @apply bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300;
+}
+
+.button-primary {
+  @apply px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 
+         transition-colors duration-200 focus:outline-none focus:ring-2 
+         focus:ring-blue-500 focus:ring-offset-2;
+}
+
+.button-secondary {
+  @apply px-4 py-2 border border-gray-300 text-gray-700 rounded-lg 
+         hover:bg-gray-50 transition-colors duration-200 focus:outline-none 
+         focus:ring-2 focus:ring-blue-500 focus:ring-offset-2;
+}
+
+.input-field {
+  @apply px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 
+         focus:ring-blue-500 focus:border-transparent transition-all duration-200;
+}
+
+.heading-1 {
+  @apply text-3xl font-bold text-gray-900;
+}
+
+.heading-2 {
+  @apply text-2xl font-semibold text-gray-900;
+}
+
+.heading-3 {
+  @apply text-xl font-medium text-gray-900;
+}

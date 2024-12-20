@@ -1,0 +1,43 @@
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+@import './styles/animations.css';
+@import './styles/theme.css';
+
+/* Custom base styles */
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  body {
+    @apply antialiased text-gray-900 bg-gray-50;
+  }
+}
+
+/* Custom components */
+@layer components {
+  .nav-link {
+    @apply inline-flex items-center px-4 py-2 text-sm font-medium transition-colors duration-200;
+  }
+  
+  .nav-link-active {
+    @apply text-blue-600 border-b-2 border-blue-500;
+  }
+  
+  .nav-link-inactive {
+    @apply text-gray-500 hover:text-gray-700 hover:border-gray-300 border-b-2 border-transparent;
+  }
+}
+
+/* Custom utilities */
+@layer utilities {
+  .text-shadow {
+    text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+  
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600;
+  }
+}
