@@ -465,49 +465,168 @@ app.get('/api/profile', authenticateToken, async (req, res) => {
       });
     }
   });
-  const prescriptionSchema = new mongoose.Schema({
-    patientId: {
-      type: String,
-      required: true
-    },
-    patientName: {
-      type: String,
-      required: true
-    },
-    patientEmail: {
-      type: String,
-      required: true
-    },
-    doctorId: {
-      type: String,
-      required: true
-    },
-    doctorName: {
-      type: String,
-      required: true
-    },
-    medications: [{
-      type: String,
-      required: true
-    }],
-    recommendations: {
-      type: String
-    },
-    date: {
-      type: Date,
-      default: Date.now
-    },
-    status: {
-      type: String,
-      enum: ['active', 'completed', 'cancelled'],
-      default: 'active'
-    }
-  }, {
-    timestamps: true
-  });
-  
-  const Prescription = mongoose.model('Prescription', prescriptionSchema);
-  
+  // Updated Prescription Schema
+const prescriptionSchema = new mongoose.Schema({
+  patientId: {
+    type: String,
+    required: true
+  },
+  patientName: {
+    type: String,
+    required: true
+  },
+  patientEmail: {
+    type: String,
+    required: true
+  },
+  doctorId: {
+    type: String,
+    required: true
+  },
+  doctorName: {
+    type: String,
+    required: true
+  },
+  medications: [{
+    type: String,
+    required: true
+  }],
+  recommendations: {
+    type: String
+  },
+  // New fields added
+  weight: {
+    type: Number,
+    min: 0
+  },
+  bloodPressure: {
+    type: String,
+    match: /^\d{2,3}\/\d{2,3}$/ // Validates format like 118/78
+  },
+  heartRate: {
+    type: String,
+    match: /^\d{2,3}bpm$/ // Validates format like 71bpm
+  },
+  date: {
+    type: Date,
+    default: Date.now
+  },
+  status: {
+    type: String,
+    enum: ['active', 'completed', 'cancelled'],
+    default: 'active'
+  }
+}, {
+  timestamps: true
+});
+
+const Prescription = mongoose.model('Prescription', prescriptionSchema);
+
+// Updated Prescription Creation Route
+app.post('/prescriptions', authenticateToken, async (req, res) => {
+  try {
+    const {
+      patientId,
+      patientName,
+      patientEmail,
+      medications,
+      recommendations,
+      doctorId,
+      doctorName,
+      weight,
+      bloodPressure,
+      heartRate
+    } = req.body;
+
+    // Create prescription with optional health metrics
+    const prescription = new Prescription({
+      patientId,
+      patientName,
+      patientEmail,
+      medications,
+      recommendations,
+      doctorId,
+      doctorName,
+      weight,
+      bloodPressure,
+      heartRate
+    });
+
+    await prescription.save();
+
+    // Send email to patient (existing email template)
+    const emailHtml = createPrescriptionEmailTemplate({
+      patientName,
+      doctorName,
+      medications,
+      recommendations,
+      date: prescription.date,
+      // Optional: Add health metrics to email template if needed
+      weight,
+      bloodPressure,
+      heartRate
+    });
+
+    await transporter.sendMail({
+      from: '\"HEALIS Healthcare\" <care.healis@gmail.com>',
+      to: patientEmail,
+      subject: 'New Prescription from Your Doctor',
+      html: emailHtml
+    });
+
+    res.status(201).json({
+      message: 'Prescription created successfully',
+      prescription
+    });
+  } catch (error) {
+    console.error('Prescription creation error:', error);
+    res.status(500).json({
+      message: 'Failed to create prescription',
+      error: error.message
+    });
+  }
+});
+
+// Updated Prescription Retrieval Route
+app.get('/prescriptions/doctor/:doctorId', authenticateToken, async (req, res) => {
+  try {
+    const prescriptions = await Prescription.find({
+      doctorId: req.params.doctorId
+    }).sort({ date: -1 });
+    
+    res.json(prescriptions);
+  } catch (error) {
+    res.status(500).json({
+      message: 'Failed to fetch prescriptions',
+      error: error.message
+    });
+  }
+});
+app.get('/api/patient-health-metrics/:patientId', authenticateToken, async (req, res) => {
+  try {
+    const { patientId } = req.params;
+    
+    // Find all prescriptions for this patient, sorted by date
+    const prescriptions = await Prescription.find({ 
+      patientId: patientId,
+      $or: [
+        { weight: { $exists: true } },
+        { bloodPressure: { $exists: true } },
+        { heartRate: { $exists: true } }
+      ]
+    })
+    .sort({ date: 1 })
+    .select('date weight bloodPressure heartRate patientName');
+
+    res.json(prescriptions);
+  } catch (error) {
+    console.error('Error fetching patient health metrics:', error);
+    res.status(500).json({ 
+      message: 'Failed to fetch health metrics',
+      error: error.message 
+    });
+  }
+});
   // Email template function
   const createPrescriptionEmailTemplate = ({ patientName, doctorName, medications, recommendations, date }) => {
     return `
@@ -538,7 +657,7 @@ app.get('/api/profile', authenticateToken, async (req, res) => {
       </div>
     `;
   };
-  app.post('/prescriptions', authenticateToken, async (req, res) => {
+  /*app.post('/prescriptions', authenticateToken, async (req, res) => {
     try {
       const {
         patientId,

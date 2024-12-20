@@ -16,6 +16,9 @@ interface Prescription {
   recommendations?: string;
   doctorId: string;
   doctorName: string;
+  weight: Number;
+  bloodPressure: string;
+  heartRate: string;
 }
 
 interface Patient {
@@ -34,21 +37,23 @@ export function Prescriptions() {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  
+
   // Form state
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [medications, setMedications] = useState<string[]>(['']);
   const [recommendations, setRecommendations] = useState('');
-
+  const [weight, setWeight] = useState<number | ''>('');
+  const [bloodPressure, setBloodPressure] = useState('');
+  const [heartRate, setHeartRate] = useState('');
   // Error handling utility
   const handleApiError = (error: any, customMessage: string) => {
     console.error(`${customMessage}:`, error);
     let errorMessage = customMessage;
-    
+
     if (axios.isAxiosError(error)) {
       errorMessage = error.response?.data?.message || error.message;
     }
-    
+
     toast.error(errorMessage);
     setSubmitError(errorMessage);
   };
@@ -58,7 +63,7 @@ export function Prescriptions() {
     try {
       const doctorId = localStorage.getItem('userId');
       const token = localStorage.getItem('token');
-      
+
       if (!doctorId || !token) {
         toast.error('Authentication required');
         return;
@@ -83,11 +88,11 @@ export function Prescriptions() {
         { userId: '2', fullName: 'Jane Smith', email: 'jane@example.com' }
       ];
       setPatients(mockPatients);
-      
+
 
       const doctorId = localStorage.getItem('userId');
       const token = localStorage.getItem('token');
-      
+
       if (!doctorId || !token) {
         toast.error('Authentication required');
         return;
@@ -108,7 +113,7 @@ export function Prescriptions() {
         );
         setPatients(uniquePatients);
       }
-      
+
     } catch (error) {
       handleApiError(error, 'Failed to fetch patients');
     }
@@ -142,20 +147,24 @@ export function Prescriptions() {
     setMedications(['']);
     setRecommendations('');
     setSubmitError(null);
+    // Reset new fields
+    setWeight('');
+    setBloodPressure('');
+    setHeartRate('');
   };
 
   // Form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitError(null);
-    
+
     if (!selectedPatient) {
       toast.error('Please select a patient');
       return;
     }
 
     const filteredMedications = medications.filter(med => med.trim() !== '');
-    
+
     if (filteredMedications.length === 0) {
       toast.error('Please add at least one medication');
       return;
@@ -163,7 +172,7 @@ export function Prescriptions() {
 
     try {
       setLoading(true);
-      
+
       const doctorId = localStorage.getItem('userId');
       const doctorName = localStorage.getItem('userName');
       const token = localStorage.getItem('token');
@@ -181,14 +190,18 @@ export function Prescriptions() {
         doctorId,
         doctorName,
         date: new Date().toISOString(),
-        status: 'active' as const
+        status: 'active' as const,
+        // Add new fields
+        weight: weight || undefined,
+        bloodPressure: bloodPressure || undefined,
+        heartRate: heartRate || undefined
       };
 
       const response = await axios.post(
-        `${API_BASE_URL}/prescriptions`, 
+        `${API_BASE_URL}/prescriptions`,
         prescriptionData,
         {
-          headers: { 
+          headers: {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json'
           }
@@ -202,7 +215,7 @@ export function Prescriptions() {
       } else {
         throw new Error('Invalid response from server');
       }
-      
+
     } catch (error) {
       handleApiError(error, 'Failed to add prescription');
     } finally {
@@ -230,7 +243,7 @@ export function Prescriptions() {
             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
         </div>
-        <button 
+        <button
           onClick={() => setShowPrescriptionForm(true)}
           className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
         >
@@ -245,7 +258,7 @@ export function Prescriptions() {
           <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold">New Prescription</h2>
-              <button 
+              <button
                 onClick={resetForm}
                 className="text-gray-500 hover:text-gray-700"
               >
@@ -317,7 +330,51 @@ export function Prescriptions() {
                   + Add another medication
                 </button>
               </div>
-
+              {/* Health Metrics */}
+              <div className="space-y-4">
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Weight (kg)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.1"
+                      value={weight}
+                      onChange={(e) => setWeight(e.target.value ? Number(e.target.value) : '')}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="e.g. 70.5"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Blood Pressure
+                    </label>
+                    <input
+                      type="text"
+                      value={bloodPressure}
+                      onChange={(e) => setBloodPressure(e.target.value)}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="e.g. 118/78"
+                      pattern="\d{2,3}\/\d{2,3}"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Heart Rate (bpm)
+                    </label>
+                    <input
+                      type="text"
+                      value={heartRate}
+                      onChange={(e) => setHeartRate(e.target.value)}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="e.g. 71bpm"
+                      pattern="\d{2,3}\s*bpm"
+                    />
+                  </div>
+                </div>
+              </div>
               {/* Recommendations */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
