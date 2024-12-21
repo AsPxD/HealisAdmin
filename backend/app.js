@@ -627,6 +627,20 @@ app.get('/api/patient-health-metrics/:patientId', authenticateToken, async (req,
     });
   }
 });
+app.get('/prescriptions/patient/:patientId', authenticateToken, async (req, res) => {
+  try {
+    const prescriptions = await Prescription.find({
+      patientId: req.params.patientId
+    }).sort({ date: -1 });
+    
+    res.json(prescriptions);
+  } catch (error) {
+    res.status(500).json({
+      message: 'Failed to fetch prescriptions',
+      error: error.message
+    });
+  }
+});
   // Email template function
   const createPrescriptionEmailTemplate = ({ patientName, doctorName, medications, recommendations, date }) => {
     return `
@@ -743,6 +757,11 @@ app.get('/api/patient-health-metrics/:patientId', authenticateToken, async (req,
     }
   });  */
 // Connect to MongoDB
+
+
+
+
+
 mongoose.connect(MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true

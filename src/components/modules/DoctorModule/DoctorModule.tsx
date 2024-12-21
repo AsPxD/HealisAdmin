@@ -4,7 +4,7 @@ import { DoctorDashboard } from './components/DoctorDashboard/DoctorDashboard';
 import { DoctorChat } from './components/DoctorChat/DoctorChat';
 import { DoctorProfile } from './components/DoctorProfile/DoctorProfile';
 import { Appointments } from './components/Appointments/Appointments';
-import { PatientRecords } from './components/PatientRecords/PatientRecords';
+import { PatientSearch } from './components/PatientRecords/PatientRecords';
 import { Prescriptions } from './components/Prescriptions/Prescriptions';
 import { DoctorSettings } from './components/DoctorSettings/DoctorSettings';
 import {
@@ -29,7 +29,7 @@ const modules = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, component: DoctorDashboard },
   { id: 'chat', label: 'Patient Chat', icon: MessageSquare, component: DoctorChat },
   { id: 'appointments', label: 'Appointments', icon: Calendar, component: Appointments },
-  { id: 'records', label: 'Patient Records', icon: ClipboardList, component: PatientRecords },
+  { id: 'records', label: 'Patient Records', icon: ClipboardList, component: PatientSearch },
   { id: 'prescriptions', label: 'Prescriptions', icon: PillIcon, component: Prescriptions },
   { id: 'profile', label: 'My Profile', icon: UserCircle, component: DoctorProfile },
   { id: 'settings', label: 'Settings', icon: Settings, component: DoctorSettings }

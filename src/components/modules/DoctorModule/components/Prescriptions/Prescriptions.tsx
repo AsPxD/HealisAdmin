@@ -4,7 +4,14 @@ import { format } from 'date-fns';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 
-// Interfaces
+// Updated interfaces
+interface Patient {
+  userId: string;
+  patientId: string; // Added patientId
+  fullName: string;
+  email: string;
+}
+
 interface Prescription {
   _id: string;
   patientId: string;
@@ -21,16 +28,11 @@ interface Prescription {
   heartRate: string;
 }
 
-interface Patient {
-  userId: string;
-  fullName: string;
-  email: string;
-}
-
-const API_BASE_URL = 'http://localhost:8000';
+const PRESCRIPTION_API_URL = 'http://localhost:8000';
+const PATIENT_API_URL = 'http://localhost:3000';
 
 export function Prescriptions() {
-  // State management
+  // Existing state
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [showPrescriptionForm, setShowPrescriptionForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -45,17 +47,41 @@ export function Prescriptions() {
   const [weight, setWeight] = useState<number | ''>('');
   const [bloodPressure, setBloodPressure] = useState('');
   const [heartRate, setHeartRate] = useState('');
+  const [patientIdInput, setPatientIdInput] = useState('');
+
   // Error handling utility
   const handleApiError = (error: any, customMessage: string) => {
     console.error(`${customMessage}:`, error);
     let errorMessage = customMessage;
-
     if (axios.isAxiosError(error)) {
       errorMessage = error.response?.data?.message || error.message;
     }
-
     toast.error(errorMessage);
     setSubmitError(errorMessage);
+  };
+
+  // Fetch patient details by PatientId
+  const fetchPatientByPatientId = async (patientId: string) => {
+    try {
+      const response = await axios.get(`${PATIENT_API_URL}/auth/${patientId}`);
+      if (response.data) {
+        const patientData: Patient = {
+          userId: patientId, // Using patientId as userId for consistency
+          patientId: patientId,
+          fullName: response.data.fullName,
+          email: response.data.email
+        };
+        setSelectedPatient(patientData);
+        // Add to patients list if not already present
+        setPatients(prev => {
+          const exists = prev.some(p => p.patientId === patientId);
+          return exists ? prev : [...prev, patientData];
+        });
+      }
+    } catch (error) {
+      handleApiError(error, 'Failed to fetch patient details');
+      setSelectedPatient(null);
+    }
   };
 
   // Fetch prescriptions
@@ -69,7 +95,7 @@ export function Prescriptions() {
         return;
       }
 
-      const response = await axios.get(`${API_BASE_URL}/prescriptions/doctor/${doctorId}`, {
+      const response = await axios.get(`${PRESCRIPTION_API_URL}/prescriptions/doctor/${doctorId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -79,50 +105,9 @@ export function Prescriptions() {
     }
   };
 
-  // Mock patient data (since the appointments API is commented out in app.js)
-  const fetchPatients = async () => {
-    try {
-      // This is temporary mock data - in production, uncomment and use the actual API
-      const mockPatients = [
-        { userId: '1', fullName: 'John Doe', email: 'john@example.com' },
-        { userId: '2', fullName: 'Jane Smith', email: 'jane@example.com' }
-      ];
-      setPatients(mockPatients);
-
-
-      const doctorId = localStorage.getItem('userId');
-      const token = localStorage.getItem('token');
-
-      if (!doctorId || !token) {
-        toast.error('Authentication required');
-        return;
-      }
-
-      const response = await axios.get(`http://localhost:3000/api/doctor-appointments/${doctorId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      if (response.data.appointments) {
-        const uniquePatients = Array.from(
-          new Map(
-            response.data.appointments.map((appointment: any) => [
-              appointment.patient.userId,
-              appointment.patient
-            ])
-          ).values()
-        );
-        setPatients(uniquePatients);
-      }
-
-    } catch (error) {
-      handleApiError(error, 'Failed to fetch patients');
-    }
-  };
-
   // Initial data fetching
   useEffect(() => {
     fetchPrescriptions();
-    fetchPatients();
   }, []);
 
   // Form handling
@@ -147,10 +132,10 @@ export function Prescriptions() {
     setMedications(['']);
     setRecommendations('');
     setSubmitError(null);
-    // Reset new fields
     setWeight('');
     setBloodPressure('');
     setHeartRate('');
+    setPatientIdInput('');
   };
 
   // Form submission
@@ -182,7 +167,7 @@ export function Prescriptions() {
       }
 
       const prescriptionData = {
-        patientId: selectedPatient.userId,
+        patientId: selectedPatient.patientId, // Using the patientId from registration
         patientName: selectedPatient.fullName,
         patientEmail: selectedPatient.email,
         medications: filteredMedications,
@@ -191,14 +176,13 @@ export function Prescriptions() {
         doctorName,
         date: new Date().toISOString(),
         status: 'active' as const,
-        // Add new fields
         weight: weight || undefined,
         bloodPressure: bloodPressure || undefined,
         heartRate: heartRate || undefined
       };
 
       const response = await axios.post(
-        `${API_BASE_URL}/prescriptions`,
+        `${PRESCRIPTION_API_URL}/prescriptions`,
         prescriptionData,
         {
           headers: {
@@ -273,29 +257,39 @@ export function Prescriptions() {
             )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Patient Selection */}
+              {/* Patient ID Input */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Select Patient
+                  Patient ID
                 </label>
-                <select
-                  value={selectedPatient?.userId || ''}
-                  onChange={(e) => {
-                    const patient = patients.find(p => p.userId === e.target.value);
-                    setSelectedPatient(patient || null);
-                  }}
-                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                  required
-                >
-                  <option value="">Select a patient</option>
-                  {patients.map((patient) => (
-                    <option key={patient.userId} value={patient.userId}>
-                      {patient.fullName}
-                    </option>
-                  ))}
-                </select>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={patientIdInput}
+                    onChange={(e) => setPatientIdInput(e.target.value)}
+                    placeholder="Enter Patient ID (e.g., PT240001)"
+                    className="flex-1 p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fetchPatientByPatientId(patientIdInput)}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                  >
+                    Look up
+                  </button>
+                </div>
               </div>
 
+              {/* Selected Patient Info */}
+              {selectedPatient && (
+                <div className="p-4 bg-blue-50 rounded-md">
+                  <h3 className="font-medium text-blue-800">Patient Details</h3>
+                  <p className="text-sm text-blue-600">Name: {selectedPatient.fullName}</p>
+                  <p className="text-sm text-blue-600">Email: {selectedPatient.email}</p>
+                </div>
+              )}
+
+              {/* Rest of the form remains the same */}
               {/* Medications */}
               <div className="space-y-2">
                 <label className="block text-sm font-medium text-gray-700">
@@ -330,6 +324,7 @@ export function Prescriptions() {
                   + Add another medication
                 </button>
               </div>
+
               {/* Health Metrics */}
               <div className="space-y-4">
                 <div className="grid grid-cols-3 gap-4">
@@ -375,6 +370,7 @@ export function Prescriptions() {
                   </div>
                 </div>
               </div>
+
               {/* Recommendations */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
