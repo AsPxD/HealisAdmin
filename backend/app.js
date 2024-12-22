@@ -1004,6 +1004,116 @@ app.get('/prescriptions/patient/:patientId', authenticateToken, async (req, res)
     });
   }
 });
+
+const inventorySchema = new mongoose.Schema({
+  companyName: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  warehouseName: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  medicineName: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  medicineUse: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  composition: {
+    type: String,
+    trim: true
+  },
+  stock: {
+    type: Number,
+    required: true,
+    min: 0
+  },
+  price: {
+    type: Number,
+    required: true,
+    min: 0
+  },
+  expiryDate: {
+    type: Date,
+    required: true
+  },
+  batchNumber: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  manufacturingDate: {
+    type: Date,
+    required: true
+  }
+}, {
+  timestamps: true
+});
+
+const Inventory = mongoose.model('Inventory', inventorySchema);
+app.post('/api/inventory', async (req, res) => {
+  try {
+    const newInventory = new Inventory(req.body);
+    const savedInventory = await newInventory.save();
+    res.status(201).json(savedInventory);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
+// Get all inventory items with optional filters
+app.get('/api/inventory', async (req, res) => {
+  try {
+    const query = {};
+    
+    // Add filters if they exist in the query params
+    if (req.query.companyName) {
+      query.companyName = new RegExp(req.query.companyName, 'i');
+    }
+    if (req.query.medicineName) {
+      query.medicineName = new RegExp(req.query.medicineName, 'i');
+    }
+    if (req.query.warehouseName) {
+      query.warehouseName = new RegExp(req.warehouseName, 'i');
+    }
+
+    const inventory = await Inventory.find(query).sort({ createdAt: -1 });
+    res.json(inventory);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Update inventory item
+app.put('/api/inventory/:id', async (req, res) => {
+  try {
+    const updatedInventory = await Inventory.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true }
+    );
+    res.json(updatedInventory);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
+// Delete inventory item
+app.delete('/api/inventory/:id', async (req, res) => {
+  try {
+    await Inventory.findByIdAndDelete(req.params.id);
+    res.json({ message: 'Inventory deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
   // Email template function
   const createPrescriptionEmailTemplate = ({ patientName, doctorName, medications, recommendations, date }) => {
     return `
