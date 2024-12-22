@@ -42,7 +42,12 @@ export function Login({ onLogin, onSwitchToRegister }: LoginProps) {
       return;
     }
     try {
-      const response = await fetch('http://localhost:8000/api/login', {
+      // Use role-specific endpoint for login
+      const endpoint = role === 'pharmacy' 
+        ? 'http://localhost:8000/api/pharmacy/login'
+        : 'http://localhost:8000/api/login';
+
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -61,10 +66,10 @@ export function Login({ onLogin, onSwitchToRegister }: LoginProps) {
 
       const data = await response.json();
       localStorage.setItem('token', data.token);
-      localStorage.setItem('userRole', data.user.role);
-      localStorage.setItem('userId', data.user.id); // Also added userId for doctor-specific appointments
-      localStorage.setItem('userName', data.user.name);
-      onLogin(data.user);
+      localStorage.setItem('userRole', role);
+      localStorage.setItem('userId', data.user?.id || data.pharmacy?.id);
+      localStorage.setItem('userName', data.user?.name || data.pharmacy?.labName);
+      onLogin(data.user || data.pharmacy);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed. Please try again.');
     }
@@ -218,55 +223,95 @@ const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
   setError('');
 
-  const formDataToSend = new FormData();
-
-  // Append basic fields
-  Object.entries(formData).forEach(([key, value]) => {
-    if (value !== null && value !== undefined) {
-      if (key === 'photo' || key === 'certificate') {
-        // Skip file fields - they're handled separately
-        return;
-      }
-      
-      // Handle arrays and objects
-      if (key === 'qualifications' || key === 'languagesSpoken' || key === 'specialities') {
-        formDataToSend.append(key, JSON.stringify(value.split(',').map(item => item.trim())));
-      } else if (key === 'availableDays') {
-        formDataToSend.append('availableDays', JSON.stringify(value));
-      } else {
-        formDataToSend.append(key, value.toString());
-      }
-    }
-  });
-
-  // Append files if they exist
-  if (formData.photo) {
-    formDataToSend.append('photo', formData.photo);
-  }
-  if (formData.certificate) {
-    formDataToSend.append('certificate', formData.certificate);
-  }
-
-  // Append role
-  formDataToSend.append('role', role);
-
-  try {
-    const response = await fetch('http://localhost:8000/api/register', {
-      method: 'POST',
-      body: formDataToSend,
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'Registration failed');
+  if (role === 'pharmacy') {
+    // Data validation
+    if (!formData.startTime || !formData.endTime) {
+      setError('Start time and end time are required');
+      return;
     }
 
-    const data = await response.json();
-    setSubmitted(true);
-  } catch (err) {
-    setError(err instanceof Error ? err.message : 'Registration failed. Please try again.');
-  }
-};
+    const formDataToSend = new FormData();
+
+    // Basic fields
+    formDataToSend.append('labName', formData.labName);
+    formDataToSend.append('experience', formData.experience);
+    formDataToSend.append('email', formData.email);
+    formDataToSend.append('phone', formData.phone);
+    formDataToSend.append('password', formData.password);
+    formDataToSend.append('location', formData.location);
+
+    // Files
+    if (formData.photo) {
+      formDataToSend.append('photo', formData.photo);
+    }
+    if (formData.certificate) {
+      formDataToSend.append('certificate', formData.certificate);
+    }
+
+    // Availability - these need to be sent as individual fields
+    formDataToSend.append('startTime', formData.startTime);
+    formDataToSend.append('endTime', formData.endTime);
+    formDataToSend.append('availableDays', JSON.stringify(formData.availableDays));
+
+    try {
+      console.log('Submitting pharmacy registration with data:', {
+        startTime: formData.startTime,
+        endTime: formData.endTime,
+        availableDays: formData.availableDays
+      });
+
+      const response = await fetch('http://localhost:8000/api/pharmacy/register', {
+        method: 'POST',
+        body: formDataToSend,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Registration failed');
+      }
+
+      const data = await response.json();
+      setSubmitted(true);
+    } catch (err) {
+      console.error('Registration error:', err);
+      setError(err instanceof Error ? err.message : 'Registration failed. Please try again.');
+    }
+  }  else {
+      // Handle doctor registration
+      // Add doctor-specific fields
+      if (role === 'doctor') {
+        formDataToSend.append('name', formData.name);
+        formDataToSend.append('experience', formData.experience);
+        formDataToSend.append('dob', formData.dob);
+        if (formData.certificate) {
+          formDataToSend.append('certificate', formData.certificate);
+        }
+        formDataToSend.append('qualifications', formData.qualifications);
+        formDataToSend.append('languagesSpoken', formData.languagesSpoken);
+        formDataToSend.append('availableDays', JSON.stringify(formData.availableDays));
+        formDataToSend.append('startTime', formData.startTime);
+        formDataToSend.append('endTime', formData.endTime);
+        formDataToSend.append('specialities', formData.specialities);
+      }
+
+      try {
+        const response = await fetch('http://localhost:8000/api/register', {
+          method: 'POST',
+          body: formDataToSend,
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Registration failed');
+        }
+
+        const data = await response.json();
+        setSubmitted(true);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Registration failed. Please try again.');
+      }
+    }
+  };
 
   if (submitted) {
     return (
@@ -509,6 +554,55 @@ const handleSubmit = async (e: React.FormEvent) => {
               </div>
             </>
           )}
+          {role === 'pharmacy' && (
+          <>
+            <div className="flex space-x-4">
+              <div className="w-1/2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Start Time
+                </label>
+                <input
+                  type="time"
+                  value={formData.startTime}
+                  onChange={(e) => setFormData(prev => ({ 
+                    ...prev, 
+                    startTime: e.target.value 
+                  }))}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md"
+                />
+              </div>
+              <div className="w-1/2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  End Time
+                </label>
+                <input
+                  type="time"
+                  value={formData.endTime}
+                  onChange={(e) => setFormData(prev => ({ 
+                    ...prev, 
+                    endTime: e.target.value 
+                  }))}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Upload Certificate
+              </label>
+              <div className="relative">
+                <FileText className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <input
+                  type="file"
+                  onChange={(e) => handleFileChange(e, 'certificate')}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  accept=".pdf,.jpg,.jpeg,.png"
+                />
+              </div>
+            </div>
+          </>
+        )}
 
           {/* Common fields for all roles */}
           <div>

@@ -11,7 +11,7 @@ const fs = require('fs');
 const app = express();
 
 // Constants
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+const JWT_SECRET = process.env.JWT_SECRET || 'healis-secret-key';
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://dhruvmehta2004:0Tb9LfHuX0jTPQsW@cluster0.bmpyuvt.mongodb.net/HEALIS-ADMIN';
 const PORT = process.env.PORT || 8000;
 
@@ -465,6 +465,369 @@ app.get('/api/profile', authenticateToken, async (req, res) => {
       });
     }
   });
+  const pharmacySchema = new mongoose.Schema({
+    role: {
+      type: String,
+      required: true,
+      default: 'pharmacy',
+      enum: ['pharmacy']
+    },
+    labName: {
+      type: String,
+      required: [true, 'Pharmacy name is required']
+    },
+    experience: {
+      type: Number,
+      required: [true, 'Years of experience is required']
+    },
+    email: {
+      type: String,
+      required: true,
+      unique: true
+    },
+    phone: {
+      type: String,
+      required: true
+    },
+    password: {
+      type: String,
+      required: true
+    },
+    location: {
+      type: String,
+      required: [true, 'Location is required']
+    },
+    photo: {
+      type: String,
+      required: [true, 'Photo is required']
+    },
+    certificate: {
+      type: String,
+      required: [true, 'Certificate is required']
+    },
+    availability: {
+      days: [String],
+      startTime: {
+        type: String,
+        required: [true, 'Start time is required']
+      },
+      endTime: {
+        type: String,
+        required: [true, 'End time is required']
+      }
+    },
+    isVerified: {
+      type: Boolean,
+      default: false
+    },
+    verificationStatus: {
+      type: String,
+      enum: ['pending', 'verified', 'rejected'],
+      default: 'pending'
+    },
+    lastLogin: {
+      type: Date,
+      default: null
+    }
+  }, {
+    timestamps: true
+  });
+  
+  // Password comparison method
+  pharmacySchema.methods.comparePassword = async function(candidatePassword) {
+    return candidatePassword === this.password; // In production, use proper password hashing
+  };
+  
+  // Method to check if pharmacy is open at given time
+  pharmacySchema.methods.isOpen = function(time) {
+    if (!this.availability.startTime || !this.availability.endTime) {
+      return false;
+    }
+  
+    const [hours, minutes] = time.split(':').map(Number);
+    const [startHours, startMinutes] = this.availability.startTime.split(':').map(Number);
+    const [endHours, endMinutes] = this.availability.endTime.split(':').map(Number);
+  
+    const timeInMinutes = hours * 60 + minutes;
+    const startTimeInMinutes = startHours * 60 + startMinutes;
+    const endTimeInMinutes = endHours * 60 + endMinutes;
+  
+    return timeInMinutes >= startTimeInMinutes && timeInMinutes <= endTimeInMinutes;
+  };
+  
+  // Virtual for operating hours
+  pharmacySchema.virtual('operatingHours').get(function() {
+    return `${this.availability.startTime} - ${this.availability.endTime}`;
+  });
+  
+  // Index for faster queries
+
+  
+  const Pharmacy = mongoose.model('Pharmacy', pharmacySchema);
+
+  // Fixed API Routes - add leading slash
+  app.post('/api/pharmacy/register', upload.fields([
+    { name: 'photo', maxCount: 1 },
+    { name: 'certificate', maxCount: 1 }
+  ]), async (req, res) => {
+    try {
+      const {
+        labName,
+        experience,
+        email,
+        phone,
+        password,
+        location,
+        startTime,
+        endTime,
+        availableDays
+      } = req.body;
+  
+      // Validate required fields
+      if (!startTime || !endTime) {
+        return res.status(400).json({
+          message: 'Start time and end time are required'
+        });
+      }
+  
+      // Create pharmacy data object
+      const pharmacyData = {
+        role: 'pharmacy',
+        labName,
+        experience: Number(experience),
+        email,
+        phone,
+        password,
+        location,
+        photo: req.files?.photo ? req.files.photo[0].path : undefined,
+        certificate: req.files?.certificate ? req.files.certificate[0].path : undefined,
+        availability: {
+          days: availableDays ? JSON.parse(availableDays) : [],
+          startTime: startTime,
+          endTime: endTime
+        },
+        isVerified: false,
+        verificationStatus: 'pending'
+      };
+  
+      console.log('Creating pharmacy with data:', {
+        ...pharmacyData,
+        password: '[REDACTED]'
+      });
+  
+      const pharmacy = new Pharmacy(pharmacyData);
+      await pharmacy.save();
+  
+      res.status(201).json({
+        message: 'Registration successful. Please wait for admin verification.',
+        pharmacy: {
+          id: pharmacy._id,
+          labName: pharmacy.labName,
+          email: pharmacy.email,
+          status: 'pending'
+        }
+      });
+    } catch (error) {
+      console.error('Pharmacy registration error:', error);
+      res.status(500).json({
+        message: 'Registration failed',
+        error: error.message
+      });
+    }
+  });
+
+// Login pharmacy
+app.post('/api/pharmacy/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    const pharmacy = await Pharmacy.findOne({ email, role: 'pharmacy' });
+    if (!pharmacy) {
+      return res.status(401).json({ message: 'Invalid credentials' });
+    }
+
+    if (!pharmacy.isVerified && pharmacy.verificationStatus !== 'verified') {
+      return res.status(401).json({
+        message: 'Account pending verification. Please wait for admin approval.'
+      });
+    }
+
+    const isMatch = await pharmacy.comparePassword(password);
+    if (!isMatch) {
+      return res.status(401).json({ message: 'Invalid credentials' });
+    }
+
+    pharmacy.lastLogin = new Date();
+    await pharmacy.save();
+
+    const token = jwt.sign(
+      { userId: pharmacy._id, role: 'pharmacy' },
+      JWT_SECRET,  // Change this line - use JWT_SECRET instead of process.env.JWT_SECRET
+      { expiresIn: '24h' }
+    );
+
+    res.json({
+      token,
+      pharmacy: {
+        id: pharmacy._id,
+        role: 'pharmacy',
+        labName: pharmacy.labName,
+        email: pharmacy.email
+      }
+    });
+  } catch (error) {
+    console.error('Pharmacy login error:', error);
+    res.status(500).json({ message: 'Login failed', error: error.message });
+  }
+});
+
+// Get all pharmacies (admin only)
+app.get('/api/pharmacy/all', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Admin access required' });
+    }
+
+    const pharmacies = await Pharmacy.find({});
+    res.json(pharmacies.map(pharmacy => ({
+      id: pharmacy._id,
+      labName: pharmacy.labName,
+      email: pharmacy.email,
+      phone: pharmacy.phone,
+      location: pharmacy.location,
+      experience: pharmacy.experience,
+      photo: pharmacy.photo,
+      certificate: pharmacy.certificate,
+      availability: pharmacy.availability,
+      status: pharmacy.verificationStatus,
+      lastLogin: pharmacy.lastLogin,
+      createdAt: pharmacy.createdAt
+    })));
+  } catch (error) {
+    console.error('Error fetching pharmacies:', error);
+    res.status(500).json({ message: 'Failed to fetch pharmacies', error: error.message });
+  }
+});
+
+// Get pharmacy profile
+app.get('/api/pharmacy/profile', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'pharmacy') {
+      return res.status(403).json({ message: 'Pharmacy access required' });
+    }
+
+    const pharmacy = await Pharmacy.findById(req.user.userId);
+    if (!pharmacy) {
+      return res.status(404).json({ message: 'Pharmacy not found' });
+    }
+
+    res.json({
+      id: pharmacy._id,
+      role: 'pharmacy',
+      labName: pharmacy.labName,
+      email: pharmacy.email,
+      phone: pharmacy.phone,
+      location: pharmacy.location,
+      experience: pharmacy.experience,
+      photo: pharmacy.photo,
+      certificate: pharmacy.certificate,
+      availability: pharmacy.availability,
+      status: pharmacy.verificationStatus
+    });
+  } catch (error) {
+    console.error('Profile fetch error:', error);
+    res.status(500).json({ message: 'Failed to fetch profile', error: error.message });
+  }
+});
+
+// Update pharmacy profile
+app.put('/api/pharmacy/profile', authenticateToken, upload.fields([
+  { name: 'photo', maxCount: 1 },
+  { name: 'certificate', maxCount: 1 }
+]), async (req, res) => {
+  try {
+    if (req.user.role !== 'pharmacy') {
+      return res.status(403).json({ message: 'Pharmacy access required' });
+    }
+
+    const pharmacy = await Pharmacy.findById(req.user.userId);
+    if (!pharmacy) {
+      return res.status(404).json({ message: 'Pharmacy not found' });
+    }
+
+    const updateData = {
+      labName: req.body.labName,
+      phone: req.body.phone,
+      location: req.body.location,
+      experience: Number(req.body.experience),
+      availability: {
+        days: req.body.availableDays ? JSON.parse(req.body.availableDays) : pharmacy.availability.days,
+        startTime: req.body.startTime || pharmacy.availability.startTime,
+        endTime: req.body.endTime || pharmacy.availability.endTime
+      }
+    };
+
+    if (req.files?.photo) {
+      updateData.photo = req.files.photo[0].path;
+    }
+    if (req.files?.certificate) {
+      updateData.certificate = req.files.certificate[0].path;
+    }
+
+    const updatedPharmacy = await Pharmacy.findByIdAndUpdate(
+      req.user.userId,
+      { $set: updateData },
+      { new: true }
+    );
+
+    res.json({
+      message: 'Profile updated successfully',
+      pharmacy: {
+        id: updatedPharmacy._id,
+        labName: updatedPharmacy.labName,
+        email: updatedPharmacy.email,
+        status: updatedPharmacy.verificationStatus
+      }
+    });
+  } catch (error) {
+    console.error('Profile update error:', error);
+    res.status(500).json({ message: 'Failed to update profile', error: error.message });
+  }
+});
+
+// Verify pharmacy (admin only)
+app.post('/api/pharmacy/verify', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Admin access required' });
+    }
+
+    const { pharmacyId, status } = req.body;
+    const pharmacy = await Pharmacy.findById(pharmacyId);
+    
+    if (!pharmacy) {
+      return res.status(404).json({ message: 'Pharmacy not found' });
+    }
+
+    pharmacy.isVerified = status === 'verified';
+    pharmacy.verificationStatus = status;
+    await pharmacy.save();
+
+    // Send verification email
+    await sendVerificationEmail(pharmacy.email, status);
+
+    res.json({
+      message: `Pharmacy ${status === 'verified' ? 'verified' : 'rejected'} successfully`,
+      pharmacy: {
+        id: pharmacy._id,
+        status: pharmacy.verificationStatus
+      }
+    });
+  } catch (error) {
+    console.error('Verification error:', error);
+    res.status(500).json({ message: 'Verification failed', error: error.message });
+  }
+});
   // Updated Prescription Schema
 const prescriptionSchema = new mongoose.Schema({
   patientId: {
