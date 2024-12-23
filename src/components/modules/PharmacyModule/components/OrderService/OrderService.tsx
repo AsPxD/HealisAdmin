@@ -1,21 +1,34 @@
 import React, { useState } from 'react';
-import { Search, ShoppingCart, Plus, Minus, FileText, CreditCard } from 'lucide-react';
+import { Search, ShoppingCart } from 'lucide-react';
 import { OrderCart } from './OrderCart';
 import { ProductList } from './ProductList';
-import { useInventory } from '../../hooks/useInventory';
-import { InventoryItem } from '../../types';
+
+interface MedicineInventoryItem {
+  _id: string;
+  companyName: string;
+  warehouseName: string;
+  medicineName: string;
+  medicineUse: string;
+  composition: string;
+  stock: number;
+  price: number;
+  expiryDate: string;
+  batchNumber: string;
+  manufacturingDate: string;
+  createdAt: string;
+  updatedAt: string;
+}
 
 export function OrderService() {
-  const { inventory, isLoading } = useInventory();
   const [searchQuery, setSearchQuery] = useState('');
-  const [cart, setCart] = useState<Array<{ item: InventoryItem; quantity: number }>>([]);
+  const [cart, setCart] = useState<Array<{ item: MedicineInventoryItem; quantity: number }>>([]);
 
-  const addToCart = (item: InventoryItem) => {
+  const addToCart = (item: MedicineInventoryItem) => {
     setCart(current => {
-      const existing = current.find(i => i.item.id === item.id);
+      const existing = current.find(i => i.item._id === item._id);
       if (existing) {
         return current.map(i =>
-          i.item.id === item.id
+          i.item._id === item._id
             ? { ...i, quantity: i.quantity + 1 }
             : i
         );
@@ -27,7 +40,7 @@ export function OrderService() {
   const updateQuantity = (itemId: string, delta: number) => {
     setCart(current =>
       current.map(i => {
-        if (i.item.id === itemId) {
+        if (i.item._id === itemId) {
           const newQuantity = Math.max(0, i.quantity + delta);
           return newQuantity === 0 ? null : { ...i, quantity: newQuantity };
         }
@@ -35,11 +48,6 @@ export function OrderService() {
       }).filter(Boolean) as typeof cart
     );
   };
-
-  const filteredInventory = inventory.filter(item =>
-    item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.category.toLowerCase().includes(searchQuery.toLowerCase())
-  );
 
   const calculateTotal = () => {
     return cart.reduce((sum, { item, quantity }) => sum + item.price * quantity, 0);
@@ -58,7 +66,6 @@ export function OrderService() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Product Selection */}
         <div className="lg:col-span-2 space-y-6">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
@@ -72,14 +79,12 @@ export function OrderService() {
           </div>
 
           <ProductList
-            inventory={filteredInventory}
-            isLoading={isLoading}
+            searchQuery={searchQuery}
             onAddToCart={addToCart}
             cart={cart}
           />
         </div>
 
-        {/* Order Cart */}
         <div className="lg:col-span-1">
           <OrderCart
             cart={cart}

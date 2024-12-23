@@ -1234,6 +1234,235 @@ app.delete('/api/inventory/:id', async (req, res) => {
 
 
 
+const MedicineItemSchema = new mongoose.Schema({
+  medicineId: {
+    type: mongoose.Schema.Types.ObjectId,
+    required: true
+  },
+  medicineName: {
+    type: String,
+    required: true
+  },
+  companyName: {
+    type: String,
+    required: true
+  },
+  medicineUse: {
+    type: String,
+    required: true
+  },
+  composition: {
+    type: String,
+    required: true
+  },
+  batchNumber: {
+    type: String,
+    required: true
+  },
+  manufacturingDate: {
+    type: Date,
+    required: true
+  },
+  expiryDate: {
+    type: Date,
+    required: true
+  },
+  warehouseName: {
+    type: String,
+    required: true
+  },
+  quantity: {
+    type: Number,
+    required: true,
+    min: 1
+  },
+  pricePerUnit: {
+    type: Number,
+    required: true,
+    min: 0
+  },
+  totalPrice: {
+    type: Number,
+    required: true,
+    min: 0
+  }
+});
+
+const BillingSchema = new mongoose.Schema({
+  billNumber: {
+    type: String,
+    unique: true
+  },
+  patientDetails: {
+    name: {
+      type: String,
+      required: true,
+      trim: true
+    },
+    email: {
+      type: String,
+      required: true,
+      trim: true,
+      lowercase: true,
+      match: [/^\S+@\S+\.\S+$/, 'Please enter a valid email']
+    },
+    phone: {
+      type: String,
+      required: true,
+      trim: true
+    },
+    patientId: {
+      type: String,
+      trim: true
+    }
+  },
+  medicines: [MedicineItemSchema],
+  billing: {
+    subtotal: {
+      type: Number,
+      required: true,
+      min: 0
+    },
+    tax: {
+      type: Number,
+      required: true,
+      min: 0
+    },
+    totalAmount: {
+      type: Number,
+      required: true,
+      min: 0
+    }
+  },
+  paymentStatus: {
+    type: String,
+    enum: ['pending', 'completed', 'failed'],
+    default: 'pending'
+  },
+  paymentMethod: {
+    type: String,
+    trim: true
+  },
+  transactionId: {
+    type: String,
+    trim: true
+  },
+  billDate: {
+    type: Date,
+    default: Date.now
+  },
+  status: {
+    type: String,
+    enum: ['active', 'cancelled', 'refunded'],
+    default: 'active'
+  }
+}, {
+  timestamps: true
+});
+
+// Function to generate bill number
+async function generateBillNumber() {
+  const date = new Date();
+  const year = date.getFullYear().toString().slice(-2);
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  
+  // Find the latest bill number for the current month
+  const latestBill = await Billing.findOne({
+    billNumber: new RegExp(`BILL-${year}${month}-`, 'i')
+  }).sort({ billNumber: -1 });
+
+  let count = 1;
+  if (latestBill && latestBill.billNumber) {
+    // Extract the counter from the latest bill number
+    const lastCounter = parseInt(latestBill.billNumber.split('-')[2]);
+    count = lastCounter + 1;
+  }
+
+  return `BILL-${year}${month}-${count.toString().padStart(4, '0')}`;
+}
+
+// Pre-save middleware
+BillingSchema.pre('save', async function(next) {
+  try {
+    if (!this.billNumber) {
+      this.billNumber = await generateBillNumber();
+    }
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
+const Billing = mongoose.model('Billing', BillingSchema);
+
+// API Route
+app.post('/api/billing', async (req, res) => {
+  try {
+    const {
+      patientDetails,
+      medicines,
+      billing,
+      paymentMethod
+    } = req.body;
+
+    // Calculate totals to ensure data integrity
+    const calculatedSubtotal = medicines.reduce((sum, item) => 
+      sum + (item.quantity * item.pricePerUnit), 0);
+    const calculatedTax = calculatedSubtotal * 0.1; // 10% tax
+    const calculatedTotal = calculatedSubtotal + calculatedTax;
+
+    // Validate calculated amounts match submitted amounts
+    if (
+      Math.abs(calculatedSubtotal - billing.subtotal) > 0.01 ||
+      Math.abs(calculatedTax - billing.tax) > 0.01 ||
+      Math.abs(calculatedTotal - billing.totalAmount) > 0.01
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: 'Billing amounts do not match calculated totals'
+      });
+    }
+
+    // Create new billing record
+    const newBilling = new Billing({
+      patientDetails,
+      medicines: medicines.map(medicine => ({
+        ...medicine,
+        totalPrice: medicine.quantity * medicine.pricePerUnit
+      })),
+      billing: {
+        subtotal: calculatedSubtotal,
+        tax: calculatedTax,
+        totalAmount: calculatedTotal
+      },
+      paymentMethod,
+      paymentStatus: 'pending'
+    });
+
+    // Save to database
+    const savedBilling = await newBilling.save();
+
+    res.status(201).json({
+      success: true,
+      data: savedBilling,
+      message: 'Billing record created successfully'
+    });
+
+  } catch (error) {
+    console.error('Billing creation error:', error);
+    
+    // Send more specific error messages
+    const errorMessage = error.code === 11000 ? 
+      'Duplicate bill number detected. Please try again.' : 
+      error.message || 'Error creating billing record';
+
+    res.status(500).json({
+      success: false,
+      message: errorMessage,
+      error: error.message
+    });
+  }
+});
 
 mongoose.connect(MONGODB_URI, {
   useNewUrlParser: true,
