@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, Settings, Check, X, AlertCircle, FileText, Clock, Globe, BookOpen } from 'lucide-react';
 
-// Updated User Interface to include pharmacy-specific fields
+// Updated User Interface to include lab-specific fields
 interface UserType {
   id: string;
   role: 'doctor' | 'lab' | 'pharmacy' | 'admin';
@@ -16,6 +16,7 @@ interface UserType {
   certificate?: string;
   qualifications?: string[];
   languagesSpoken?: string[];
+  address?: string;
   availability?: {
     days: string[];
     startTime: string;
@@ -49,8 +50,8 @@ export function UserList() {
     try {
       setIsLoading(true);
       
-      // Fetch both users and pharmacies
-      const [usersResponse, pharmaciesResponse] = await Promise.all([
+      // Fetch users, pharmacies, and labs
+      const [usersResponse, pharmaciesResponse, labsResponse] = await Promise.all([
         fetch('http://localhost:8000/api/users', {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -62,12 +63,19 @@ export function UserList() {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
           }
+        }),
+        fetch('http://localhost:8000/api/lab/all', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
         })
       ]);
 
-      const [usersData, pharmaciesData] = await Promise.all([
+      const [usersData, pharmaciesData, labsData] = await Promise.all([
         usersResponse.json(),
-        pharmaciesResponse.json()
+        pharmaciesResponse.json(),
+        labsResponse.json()
       ]);
 
       // Combine and normalize the data
@@ -77,6 +85,11 @@ export function UserList() {
           ...pharmacy,
           role: 'pharmacy',
           name: pharmacy.labName
+        })),
+        ...labsData.map((lab: any) => ({
+          ...lab,
+          role: 'lab',
+          name: lab.labName
         }))
       ];
 
@@ -92,12 +105,16 @@ export function UserList() {
   const handleVerify = async (userId: string, status: 'verified' | 'rejected', role: string) => {
     try {
       // Choose endpoint based on role
-      const endpoint = role === 'pharmacy' 
+      const endpoint = role === 'pharmacy'
         ? 'http://localhost:8000/api/pharmacy/verify'
+        : role === 'lab'
+        ? 'http://localhost:8000/api/lab/verify'
         : 'http://localhost:8000/api/verify-user';
 
       const payload = role === 'pharmacy' 
         ? { pharmacyId: userId, status }
+        : role === 'lab'
+        ? { LabId: userId, status }
         : { userId, status };
 
       const response = await fetch(endpoint, {
@@ -115,7 +132,7 @@ export function UserList() {
       setUsers(prevUsers => 
         prevUsers.map(user => 
           user.id === userId 
-            ? { ...user, status: data.user?.status || data.pharmacy?.status } 
+            ? { ...user, status: data.user?.status || data.pharmacy?.status || data.lab?.status } 
             : user
         )
       );
@@ -196,7 +213,7 @@ export function UserList() {
                 <div className="flex items-center mb-4">
                   {user.photo ? (
                     <img 
-                      src={`http://localhost:8000/${user.photo.replace(/\\/g, '/')}`} 
+                      src={`http://localhost:8000/uploads/${user.photo}`} 
                       alt={user.name} 
                       className="w-20 h-20 rounded-full object-cover mr-4"
                       onError={(e) => {
@@ -226,6 +243,13 @@ export function UserList() {
                     <span className="font-semibold w-24">Location:</span>
                     <span>{user.location}</span>
                   </div>
+
+                  {(user.role === 'lab' || user.role === 'pharmacy') && user.address && (
+                    <div className="flex items-center">
+                      <span className="font-semibold w-24">Address:</span>
+                      <span>{user.address}</span>
+                    </div>
+                  )}
 
                   <div className="flex items-center">
                     <span className="font-semibold w-24">Experience:</span>
@@ -275,8 +299,8 @@ export function UserList() {
                     </>
                   )}
 
-                  {/* Availability section for doctors and pharmacies */}
-                  {(user.role === 'doctor' || user.role === 'pharmacy') && user.availability && (
+                  {/* Availability section for doctors, pharmacies, and labs */}
+                  {(user.role === 'doctor' || user.role === 'pharmacy' || user.role === 'lab') && user.availability && (
                     <div className="mt-3 bg-gray-50 p-3 rounded">
                       <div className="flex items-center mb-2">
                         <Clock className="w-4 h-4 mr-2" />
@@ -313,14 +337,14 @@ export function UserList() {
                     </div>
                     {user.certificate.toLowerCase().endsWith('.pdf') ? (
                       <iframe 
-                        src={`http://localhost:8000/${user.certificate.replace(/\\/g, '/')}`}
+                        src={`http://localhost:8000/uploads/${user.certificate}`}
                         width="100%" 
                         height="200" 
                         className="mt-2 border rounded"
                       />
                     ) : (
                       <img 
-                        src={`http://localhost:8000/${user.certificate.replace(/\\/g, '/')}`} 
+                        src={`http://localhost:8000/uploads/${user.certificate}`} 
                         alt="Certificate" 
                         className="mt-2 max-h-48 object-cover rounded"
                         onError={(e) => {

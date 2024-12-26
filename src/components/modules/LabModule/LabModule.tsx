@@ -4,9 +4,9 @@ import { LabDashboard } from './components/Dashboard/LabDashboard';
 import { ReportManagement } from './components/Reports/ReportManagement';
 import { AIAnalytics } from './components/Analytics/AIAnalytics';
 import { LabIntegration } from './components/Integration/LabIntegration';
-import { QualityControl } from './components/Quality/QualityControl';
+import { LabProfile } from './components/Quality/QualityControl';
 import { InventoryTracker } from './components/Inventory/InventoryTracker';
-import { ResearchHub } from './components/Research/ResearchHub';
+import { PatientSearch } from './components/Research/ResearchHub';
 import {
   LayoutDashboard,
   FileText,
@@ -22,9 +22,9 @@ const modules = [
   { id: 'reports', label: 'Reports', icon: FileText, component: ReportManagement },
   { id: 'ai-analytics', label: 'AI Analytics', icon: Brain, component: AIAnalytics },
   { id: 'integration', label: 'Lab Network', icon: Network, component: LabIntegration },
-  { id: 'quality', label: 'Quality Control', icon: ShieldCheck, component: QualityControl },
+  { id: 'quality', label: 'Quality Control', icon: ShieldCheck, component: LabProfile },
   { id: 'inventory', label: 'Inventory', icon: Package, component: InventoryTracker },
-  { id: 'research', label: 'Research', icon: Microscope, component: ResearchHub }
+  { id: 'research', label: 'Research', icon: Microscope, component: PatientSearch }
 ];
 
 export function LabModule({ user, onLogout }) {

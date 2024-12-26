@@ -55,29 +55,37 @@ const AddInventoryForm = ({ onClose, onInventoryAdded }) => {
     batchNumber: '',
     manufacturingDate: ''
   });
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      const response = await fetch('/api/inventory', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to add inventory');
+  
+    const handleSubmit = async (e) => {
+      e.preventDefault();
+      try {
+        const token = localStorage.getItem('token');
+        
+        if (!token) {
+          throw new Error('No authentication token found');
+        }
+  
+        const response = await fetch('/api/inventory', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(formData),
+        });
+  
+        if (!response.ok) {
+          throw new Error('Failed to add inventory');
+        }
+  
+        const savedInventory = await response.json();
+        onInventoryAdded(savedInventory);
+        onClose();
+      } catch (error) {
+        console.error('Error adding inventory:', error);
+        // Handle error (show error message)
       }
-
-      const savedInventory = await response.json();
-      onInventoryAdded(savedInventory);
-      onClose();
-    } catch (error) {
-      console.error('Error adding inventory:', error);
-    }
-  };
+    };
 
   return (
     <div>
@@ -234,28 +242,41 @@ export function InventoryManagement() {
     category: 'all',
     stockStatus: 'all'
   });
-
-  const fetchInventory = async () => {
-    try {
-      setIsLoading(true);
-      const searchParams = new URLSearchParams();
-      if (filters.search) {
-        searchParams.append('medicineName', filters.search);
+  
+    const fetchInventory = async () => {
+      try {
+        setIsLoading(true);
+        const token = localStorage.getItem('token');
+        
+        if (!token) {
+          throw new Error('No authentication token found');
+        }
+  
+        const searchParams = new URLSearchParams();
+        if (filters.search) {
+          searchParams.append('medicineName', filters.search);
+        }
+  
+        const response = await fetch(`/api/inventory?${searchParams.toString()}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+  
+        if (!response.ok) {
+          throw new Error('Failed to fetch inventory');
+        }
+        
+        const data = await response.json();
+        setInventory(data);
+      } catch (error) {
+        console.error('Error fetching inventory:', error);
+        // Handle error (e.g., redirect to login, show error message)
+      } finally {
+        setIsLoading(false);
       }
-      // Add other filters as needed
-
-      const response = await fetch(`/api/inventory?${searchParams.toString()}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch inventory');
-      }
-      const data = await response.json();
-      setInventory(data);
-    } catch (error) {
-      console.error('Error fetching inventory:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    };
 
   useEffect(() => {
     fetchInventory();

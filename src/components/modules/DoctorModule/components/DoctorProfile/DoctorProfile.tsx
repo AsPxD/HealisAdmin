@@ -88,7 +88,7 @@ export function DoctorProfile() {
     if (imageError || !doctorProfile?.photo) {
       return 'https://via.placeholder.com/200';
     }
-    return `http://localhost:8000/${doctorProfile.photo.replace(/\\/g, '/')}`;
+    return `http://localhost:8000/uploads/${doctorProfile.photo}`;
   };
 
   if (loading) {
@@ -223,7 +223,7 @@ export function DoctorProfile() {
             {doctorProfile.certificate && (
               <div className="mt-4">
                 <a 
-                  href={`http://localhost:8000/${doctorProfile.certificate.replace(/\\/g, '/')}`}
+                  href={`http://localhost:8000/uploads/${doctorProfile.certificate}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-blue-600 hover:underline flex items-center"

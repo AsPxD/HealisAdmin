@@ -2,9 +2,8 @@ import React, { useState } from 'react';
 import { Header } from '../../shared/Header';
 import { PharmacyDashboard } from './components/Dashboard/PharmacyDashboard';
 import { InventoryManagement } from './components/Inventory/InventoryManagement';
-import { PrescriptionCenter } from './components/Prescriptions/PrescriptionCenter';
+import { PatientSearch } from './components/Prescriptions/PrescriptionCenter';
 import { SmartAnalytics } from './components/Analytics/SmartAnalytics';
-import { AutomatedDispensing } from './components/Dispensing/AutomatedDispensing';
 import { QualityControl } from './components/Quality/QualityControl';
 import { DrugInteractions } from './components/Interactions/DrugInteractions';
 import { OrderService } from './components/OrderService/OrderService';
@@ -23,9 +22,8 @@ const modules = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, component: PharmacyDashboard },
   { id: 'orders', label: 'Order Service', icon: ShoppingCart, component: OrderService },
   { id: 'inventory', label: 'Smart Inventory', icon: Package, component: InventoryManagement },
-  { id: 'prescriptions', label: 'Prescriptions', icon: FileText, component: PrescriptionCenter },
+  { id: 'prescriptions', label: 'Prescriptions', icon: FileText, component: PatientSearch },
   { id: 'analytics', label: 'ML Analytics', icon: Brain, component: SmartAnalytics },
-  { id: 'dispensing', label: 'Auto Dispensing', icon: Box, component: AutomatedDispensing },
   { id: 'quality', label: 'Quality Control', icon: ShieldCheck, component: QualityControl },
   { id: 'interactions', label: 'Drug Interactions', icon: AlertTriangle, component: DrugInteractions }
 ];

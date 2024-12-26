@@ -34,10 +34,24 @@ export function ProductList({ searchQuery, cart, onAddToCart }: ProductListProps
 
   const fetchInventory = async () => {
     try {
-      const response = await fetch('/api/inventory');
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
+      const response = await fetch('/api/inventory', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
       if (!response.ok) {
         throw new Error('Failed to fetch inventory');
       }
+
       const data = await response.json();
       setInventory(data);
       setError(null);

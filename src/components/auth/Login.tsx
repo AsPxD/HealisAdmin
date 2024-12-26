@@ -44,8 +44,10 @@ export function Login({ onLogin, onSwitchToRegister }: LoginProps) {
     try {
       // Use role-specific endpoint for login
       const endpoint = role === 'pharmacy' 
-        ? 'http://localhost:8000/api/pharmacy/login'
-        : 'http://localhost:8000/api/login';
+  ? 'http://localhost:8000/api/pharmacy/login'
+  : role === 'lab'
+  ? 'http://localhost:8000/api/lab/login' 
+  : 'http://localhost:8000/api/login';
 
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -67,9 +69,19 @@ export function Login({ onLogin, onSwitchToRegister }: LoginProps) {
       const data = await response.json();
       localStorage.setItem('token', data.token);
       localStorage.setItem('userRole', role);
-      localStorage.setItem('userId', data.user?.id || data.pharmacy?.id);
-      localStorage.setItem('userName', data.user?.name || data.pharmacy?.labName);
-      onLogin(data.user || data.pharmacy);
+      if (role === 'lab') {
+        localStorage.setItem('userId', data.lab.id);
+        localStorage.setItem('userName', data.lab.labName);
+        onLogin(data.lab);
+      } else if (role === 'pharmacy') {
+        localStorage.setItem('userId', data.pharmacy.id);
+        localStorage.setItem('userName', data.pharmacy.pharmacyName);
+        onLogin(data.pharmacy);
+      } else {
+        localStorage.setItem('userId', data.user.id);
+        localStorage.setItem('userName', data.user.name);
+        onLogin(data.user);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed. Please try again.');
     }
@@ -197,6 +209,7 @@ export function Register({ onRegister, onSwitchToLogin }: RegisterProps) {
     phone: '',
     password: '',
     photo: null as File | null,
+    address: '',
     location: '',
     certificate: null as File | null,
     specialities: '', // Changed from speciality to specialities
@@ -223,23 +236,67 @@ const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
   setError('');
 
-  if (role === 'pharmacy') {
-    // Data validation
-    if (!formData.startTime || !formData.endTime) {
-      setError('Start time and end time are required');
-      return;
+if(role === 'lab'){
+  const formDataToSend = new FormData();
+  formDataToSend.append('role', 'lab');
+  formDataToSend.append('labName', formData.labName);
+  formDataToSend.append('experience', formData.experience);
+  formDataToSend.append('email', formData.email);
+  formDataToSend.append('phone', formData.phone);
+  formDataToSend.append('password', formData.password);
+  formDataToSend.append('location', formData.location);
+  formDataToSend.append('address', formData.address);
+  // Availability details
+  formDataToSend.append('startTime', formData.startTime);
+  formDataToSend.append('endTime', formData.endTime);
+  formDataToSend.append('availableDays', JSON.stringify(formData.availableDays));
+  if (formData.photo) {
+    formDataToSend.append('photo', formData.photo);
+  }
+  if (formData.certificate) {
+    formDataToSend.append('certificate', formData.certificate);
+  }
+  try {
+    console.log('Submitting pharmacy registration with data:', {
+      startTime: formData.startTime,
+      endTime: formData.endTime,
+      availableDays: formData.availableDays
+    });
+
+    const response = await fetch('http://localhost:8000/api/lab/register', {
+      method: 'POST',
+      body: formDataToSend,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Registration failed');
     }
 
+    const data = await response.json();
+    setSubmitted(true);
+  } catch (err) {
+    console.error('Registration error:', err);
+    setError(err instanceof Error ? err.message : 'Registration failed. Please try again.');
+  }
+}
+  
+  // In handleSubmit method for pharmacy registration
+  else if (role === 'pharmacy') {
     const formDataToSend = new FormData();
-
-    // Basic fields
+    formDataToSend.append('role', 'pharmacy');
     formDataToSend.append('labName', formData.labName);
     formDataToSend.append('experience', formData.experience);
     formDataToSend.append('email', formData.email);
     formDataToSend.append('phone', formData.phone);
     formDataToSend.append('password', formData.password);
     formDataToSend.append('location', formData.location);
-
+    formDataToSend.append('address', formData.address);
+    // Availability details
+    formDataToSend.append('startTime', formData.startTime);
+    formDataToSend.append('endTime', formData.endTime);
+    formDataToSend.append('availableDays', JSON.stringify(formData.availableDays));
+  
     // Files
     if (formData.photo) {
       formDataToSend.append('photo', formData.photo);
@@ -247,11 +304,6 @@ const handleSubmit = async (e: React.FormEvent) => {
     if (formData.certificate) {
       formDataToSend.append('certificate', formData.certificate);
     }
-
-    // Availability - these need to be sent as individual fields
-    formDataToSend.append('startTime', formData.startTime);
-    formDataToSend.append('endTime', formData.endTime);
-    formDataToSend.append('availableDays', JSON.stringify(formData.availableDays));
 
     try {
       console.log('Submitting pharmacy registration with data:', {
@@ -279,20 +331,34 @@ const handleSubmit = async (e: React.FormEvent) => {
   }  else {
       // Handle doctor registration
       // Add doctor-specific fields
-      if (role === 'doctor') {
-        formDataToSend.append('name', formData.name);
-        formDataToSend.append('experience', formData.experience);
-        formDataToSend.append('dob', formData.dob);
-        if (formData.certificate) {
-          formDataToSend.append('certificate', formData.certificate);
-        }
-        formDataToSend.append('qualifications', formData.qualifications);
-        formDataToSend.append('languagesSpoken', formData.languagesSpoken);
-        formDataToSend.append('availableDays', JSON.stringify(formData.availableDays));
-        formDataToSend.append('startTime', formData.startTime);
-        formDataToSend.append('endTime', formData.endTime);
-        formDataToSend.append('specialities', formData.specialities);
-      }
+      const formDataToSend = new FormData();
+      // In the doctor registration section of handleSubmit method
+if (role === 'doctor') {
+  formDataToSend.append('role', 'doctor'); // Add this line
+  formDataToSend.append('name', formData.name);
+  formDataToSend.append('experience', formData.experience);
+  formDataToSend.append('dob', formData.dob);
+  formDataToSend.append('email', formData.email);
+  formDataToSend.append('phone', formData.phone);
+  formDataToSend.append('password', formData.password);
+  formDataToSend.append('location', formData.location);
+  formDataToSend.append('address', formData.address);
+  // Existing code for certificate and photo
+  if (formData.certificate) {
+    formDataToSend.append('certificate', formData.certificate);
+  }
+  if (formData.photo) {
+    formDataToSend.append('photo', formData.photo);
+  }
+
+  // Stringify complex fields
+  formDataToSend.append('qualifications', JSON.stringify(formData.qualifications.split(',')));
+  formDataToSend.append('languagesSpoken', JSON.stringify(formData.languagesSpoken.split(',')));
+  formDataToSend.append('availableDays', JSON.stringify(formData.availableDays));
+  formDataToSend.append('startTime', formData.startTime);
+  formDataToSend.append('endTime', formData.endTime);
+  formDataToSend.append('specialities', JSON.stringify(formData.specialities.split(',')));
+}
 
       try {
         const response = await fetch('http://localhost:8000/api/register', {
@@ -554,6 +620,73 @@ const handleSubmit = async (e: React.FormEvent) => {
               </div>
             </>
           )}
+          {role === 'lab' && (
+            <>
+            <div className="flex space-x-4">
+              <div className="w-1/2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Start Time
+                </label>
+                <input
+                  type="time"
+                  value={formData.startTime}
+                  onChange={(e) => setFormData(prev => ({ 
+                    ...prev, 
+                    startTime: e.target.value 
+                  }))}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md"
+                />
+              </div>
+              <div className="w-1/2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  End Time
+                </label>
+                <input
+                  type="time"
+                  value={formData.endTime}
+                  onChange={(e) => setFormData(prev => ({ 
+                    ...prev, 
+                    endTime: e.target.value 
+                  }))}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md"
+                />
+              </div>
+            </div>
+            <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Available Days
+                </label>
+                <select
+                  multiple
+                  value={formData.availableDays}
+                  onChange={(e) => setFormData(prev => ({
+                    ...prev,
+                    availableDays: Array.from(e.target.selectedOptions, option => option.value)
+                  }))}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md"
+                >
+                  {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(day => (
+                    <option key={day} value={day}>{day}</option>
+                  ))}
+                </select>
+              </div>
+            <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Upload Certificate
+            </label>
+            <div className="relative">
+              <FileText className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <input
+                type="file"
+                onChange={(e) => handleFileChange(e, 'certificate')}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                accept=".pdf,.jpg,.jpeg,.png"
+              />
+            </div>
+          </div>
+
+          </>
+          )}
           {role === 'pharmacy' && (
           <>
             <div className="flex space-x-4">
@@ -586,7 +719,24 @@ const handleSubmit = async (e: React.FormEvent) => {
                 />
               </div>
             </div>
-
+            <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Available Days
+                </label>
+                <select
+                  multiple
+                  value={formData.availableDays}
+                  onChange={(e) => setFormData(prev => ({
+                    ...prev,
+                    availableDays: Array.from(e.target.selectedOptions, option => option.value)
+                  }))}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md"
+                >
+                  {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(day => (
+                    <option key={day} value={day}>{day}</option>
+                  ))}
+                </select>
+              </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Upload Certificate
@@ -605,6 +755,22 @@ const handleSubmit = async (e: React.FormEvent) => {
         )}
 
           {/* Common fields for all roles */}
+          {/* New Address Field */}
+          <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Address
+                </label>
+                <input
+                  type="text"
+                  value={formData.address}
+                  onChange={(e) => setFormData(prev => ({
+                    ...prev,
+                    address: e.target.value
+                  }))}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md"
+                  placeholder="MD, MBBS, Specialization"
+                />
+              </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Email

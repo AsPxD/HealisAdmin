@@ -33,6 +33,15 @@ const transporter = nodemailer.createTransport({
 
 // MongoDB User Schema
 const userSchema = new mongoose.Schema({
+  doctorId: {
+    type: String,
+    unique: true,
+    required: true,
+    default: function() {
+        // Generate a unique pharmacy ID
+        return 'DT-' + Date.now() + Math.random().toString(36).substr(2, 5);
+    }
+},
   role: {
     type: String,
     required: true,
@@ -56,6 +65,7 @@ const userSchema = new mongoose.Schema({
     required: true
   },
   location: String,
+  address: String,
   photo: String,
   certificate: String,
   specialities: {
@@ -180,7 +190,6 @@ const authenticateToken = (req, res, next) => {
 };
 
 // Routes
-
 app.post('/api/register', upload.fields([
   { name: 'photo', maxCount: 1 },
   { name: 'certificate', maxCount: 1 }
@@ -188,8 +197,10 @@ app.post('/api/register', upload.fields([
   try {
     console.log('Registration request body:', req.body);
 
+    // Add a fallback for role if not provided
+    const role = req.body.role || req.body.userRole || 'doctor';
+
     const {
-      role,
       name,
       labName,
       experience,
@@ -198,6 +209,7 @@ app.post('/api/register', upload.fields([
       phone,
       password,
       location,
+      address,
       qualifications,
       specialities,
       languagesSpoken,
@@ -213,10 +225,12 @@ app.post('/api/register', upload.fields([
       phone,
       password,
       location,
+      address,
       experience: experience ? Number(experience) : undefined,
-      photo: req.files?.photo ? req.files.photo[0].path : undefined,
+      photo: req.files?.photo ? path.basename(req.files.photo[0].path) : undefined,
       isVerified: false,
-      verificationStatus: 'pending'
+      verificationStatus: 'pending',
+      doctorId: 'DT-' + Date.now() + Math.random().toString(36).substr(2, 5)
     };
 
     // Add role-specific data
@@ -224,7 +238,7 @@ app.post('/api/register', upload.fields([
       Object.assign(userData, {
         name,
         dob,
-        certificate: req.files?.certificate ? req.files.certificate[0].path : undefined,
+        certificate: req.files?.certificate ? path.basename(req.files.certificate[0].path) : undefined,
         specialities: specialities ? JSON.parse(specialities) : [],
         qualifications: qualifications ? JSON.parse(qualifications) : [],
         languagesSpoken: languagesSpoken ? JSON.parse(languagesSpoken) : [],
@@ -348,6 +362,7 @@ app.get('/api/users', authenticateToken, async (req, res) => {
         photo: user.photo,
         experience: user.experience,
         location: user.location,
+        address: user.address,
         lastLogin: user.lastLogin,
         createdAt: user.createdAt,
         
@@ -436,6 +451,7 @@ app.get('/api/profile', authenticateToken, async (req, res) => {
         email: user.email,
         phone: user.phone,
         location: user.location,
+        address: user.address,
         experience: user.experience,
         photo: user.photo,
         status: user.verificationStatus
@@ -466,6 +482,15 @@ app.get('/api/profile', authenticateToken, async (req, res) => {
     }
   });
   const pharmacySchema = new mongoose.Schema({
+  pharmacyId: {
+      type: String,
+      unique: true,
+      required: true,
+      default: function() {
+          // Generate a unique pharmacy ID
+          return 'PH-' + Date.now() + Math.random().toString(36).substr(2, 5);
+      }
+  },
     role: {
       type: String,
       required: true,
@@ -496,6 +521,10 @@ app.get('/api/profile', authenticateToken, async (req, res) => {
     location: {
       type: String,
       required: [true, 'Location is required']
+    },
+    address:{
+      type:String,
+      required: [true, "Address is required"]
     },
     photo: {
       type: String,
@@ -566,74 +595,89 @@ app.get('/api/profile', authenticateToken, async (req, res) => {
   const Pharmacy = mongoose.model('Pharmacy', pharmacySchema);
 
   // Fixed API Routes - add leading slash
+  
+  // Modify the registration route
   app.post('/api/pharmacy/register', upload.fields([
-    { name: 'photo', maxCount: 1 },
-    { name: 'certificate', maxCount: 1 }
+      { name: 'photo', maxCount: 1 },
+      { name: 'certificate', maxCount: 1 }
   ]), async (req, res) => {
-    try {
-      const {
-        labName,
-        experience,
-        email,
-        phone,
-        password,
-        location,
-        startTime,
-        endTime,
-        availableDays
-      } = req.body;
+      try {
+          const {
+              labName,
+              experience,
+              email,
+              phone,
+              password,
+              location,
+              address,
+              startTime,
+              endTime,
+              availableDays
+          } = req.body;
   
-      // Validate required fields
-      if (!startTime || !endTime) {
-        return res.status(400).json({
-          message: 'Start time and end time are required'
-        });
+          // Validate required fields
+          if (!startTime || !endTime) {
+              return res.status(400).json({
+                  message: 'Start time and end time are required'
+              });
+          }
+  
+          // Check if pharmacy with this email already exists
+          const existingPharmacy = await Pharmacy.findOne({ email });
+          if (existingPharmacy) {
+              return res.status(400).json({
+                  message: 'A pharmacy with this email already exists'
+              });
+          }
+  
+          // Create pharmacy data object
+          const pharmacyData = {
+              role: 'pharmacy',
+              labName,
+              experience: Number(experience),
+              email,
+              phone,
+              password,
+              location,
+              address,
+              photo: req.files?.photo ? path.basename(req.files.photo[0].path): undefined,
+              certificate: req.files?.certificate ? path.basename(req.files.certificate[0].path) : undefined,
+              availability: {
+                  days: availableDays ? JSON.parse(availableDays) : [],
+                  startTime: startTime,
+                  endTime: endTime
+              },
+              isVerified: false,
+              verificationStatus: 'pending',
+              // Ensure pharmacyId is generated
+              pharmacyId: 'PH-' + Date.now() + Math.random().toString(36).substr(2, 5)
+          };
+  
+          console.log('Creating pharmacy with data:', {
+              ...pharmacyData,
+              password: '[REDACTED]'
+          });
+  
+          const pharmacy = new Pharmacy(pharmacyData);
+          await pharmacy.save();
+  
+          res.status(201).json({
+              message: 'Registration successful. Please wait for admin verification.',
+              pharmacy: {
+                  id: pharmacy._id,
+                  pharmacyId: pharmacy.pharmacyId,
+                  labName: pharmacy.labName,
+                  email: pharmacy.email,
+                  status: 'pending'
+              }
+          });
+      } catch (error) {
+          console.error('Pharmacy registration error:', error);
+          res.status(500).json({
+              message: 'Registration failed',
+              error: error.message
+          });
       }
-  
-      // Create pharmacy data object
-      const pharmacyData = {
-        role: 'pharmacy',
-        labName,
-        experience: Number(experience),
-        email,
-        phone,
-        password,
-        location,
-        photo: req.files?.photo ? req.files.photo[0].path : undefined,
-        certificate: req.files?.certificate ? req.files.certificate[0].path : undefined,
-        availability: {
-          days: availableDays ? JSON.parse(availableDays) : [],
-          startTime: startTime,
-          endTime: endTime
-        },
-        isVerified: false,
-        verificationStatus: 'pending'
-      };
-  
-      console.log('Creating pharmacy with data:', {
-        ...pharmacyData,
-        password: '[REDACTED]'
-      });
-  
-      const pharmacy = new Pharmacy(pharmacyData);
-      await pharmacy.save();
-  
-      res.status(201).json({
-        message: 'Registration successful. Please wait for admin verification.',
-        pharmacy: {
-          id: pharmacy._id,
-          labName: pharmacy.labName,
-          email: pharmacy.email,
-          status: 'pending'
-        }
-      });
-    } catch (error) {
-      console.error('Pharmacy registration error:', error);
-      res.status(500).json({
-        message: 'Registration failed',
-        error: error.message
-      });
-    }
   });
 
 // Login pharmacy
@@ -695,6 +739,7 @@ app.get('/api/pharmacy/all', authenticateToken, async (req, res) => {
       email: pharmacy.email,
       phone: pharmacy.phone,
       location: pharmacy.location,
+      address: pharmacy.address,
       experience: pharmacy.experience,
       photo: pharmacy.photo,
       certificate: pharmacy.certificate,
@@ -728,6 +773,7 @@ app.get('/api/pharmacy/profile', authenticateToken, async (req, res) => {
       email: pharmacy.email,
       phone: pharmacy.phone,
       location: pharmacy.location,
+      address: pharmacy.address,
       experience: pharmacy.experience,
       photo: pharmacy.photo,
       certificate: pharmacy.certificate,
@@ -759,6 +805,7 @@ app.put('/api/pharmacy/profile', authenticateToken, upload.fields([
       labName: req.body.labName,
       phone: req.body.phone,
       location: req.body.location,
+      address: req.body.address,
       experience: Number(req.body.experience),
       availability: {
         days: req.body.availableDays ? JSON.parse(req.body.availableDays) : pharmacy.availability.days,
@@ -768,10 +815,10 @@ app.put('/api/pharmacy/profile', authenticateToken, upload.fields([
     };
 
     if (req.files?.photo) {
-      updateData.photo = req.files.photo[0].path;
+      updateData.photo = path.basename(req.files.photo[0].path);
     }
     if (req.files?.certificate) {
-      updateData.certificate = req.files.certificate[0].path;
+      updateData.certificate = path.basename(req.files.certificate[0].path);
     }
 
     const updatedPharmacy = await Pharmacy.findByIdAndUpdate(
@@ -1004,8 +1051,478 @@ app.get('/prescriptions/patient/:patientId', authenticateToken, async (req, res)
     });
   }
 });
+const labSchema = new mongoose.Schema({
+  LabId: {
+      type: String,
+      unique: true,
+      required: true,
+      default: function() {
+          // Generate a unique pharmacy ID
+          return 'LB-' + Date.now() + Math.random().toString(36).substr(2, 5);
+      }
+  },
+    role: {
+      type: String,
+      required: true,
+      default: 'lab',
+      enum: ['lab']
+    },
+    labName: {
+      type: String,
+      required: [true, 'Pharmacy name is required']
+    },
+    experience: {
+      type: Number,
+      required: [true, 'Years of experience is required']
+    },
+    email: {
+      type: String,
+      required: true,
+      unique: true
+    },
+    phone: {
+      type: String,
+      required: true
+    },
+    password: {
+      type: String,
+      required: true
+    },
+    location: {
+      type: String,
+      required: [true, 'Location is required']
+    },
+    address:{
+      type:String,
+      required: [true, "Address is required"]
+    },
+    photo: {
+      type: String,
+      required: [true, 'Photo is required']
+    },
+    certificate: {
+      type: String,
+      required: [true, 'Certificate is required']
+    },
+    availability: {
+      days: [String],
+      startTime: {
+        type: String,
+        required: [true, 'Start time is required']
+      },
+      endTime: {
+        type: String,
+        required: [true, 'End time is required']
+      }
+    },
+    isVerified: {
+      type: Boolean,
+      default: false
+    },
+    verificationStatus: {
+      type: String,
+      enum: ['pending', 'verified', 'rejected'],
+      default: 'pending'
+    },
+    lastLogin: {
+      type: Date,
+      default: null
+    }
+  }, {
+    timestamps: true
+  });
+  
+  // Password comparison method
+  labSchema.methods.comparePassword = async function(candidatePassword) {
+    return candidatePassword === this.password; // In production, use proper password hashing
+  };
+  
+  // Method to check if pharmacy is open at given time
+  labSchema.methods.isOpen = function(time) {
+    if (!this.availability.startTime || !this.availability.endTime) {
+      return false;
+    }
+  
+    const [hours, minutes] = time.split(':').map(Number);
+    const [startHours, startMinutes] = this.availability.startTime.split(':').map(Number);
+    const [endHours, endMinutes] = this.availability.endTime.split(':').map(Number);
+  
+    const timeInMinutes = hours * 60 + minutes;
+    const startTimeInMinutes = startHours * 60 + startMinutes;
+    const endTimeInMinutes = endHours * 60 + endMinutes;
+  
+    return timeInMinutes >= startTimeInMinutes && timeInMinutes <= endTimeInMinutes;
+  };
+  
+  // Virtual for operating hours
+  labSchema.virtual('operatingHours').get(function() {
+    return `${this.availability.startTime} - ${this.availability.endTime}`;
+  });
+  
+  // Index for faster queries
 
+  
+  const Lab = mongoose.model('Lab', labSchema);
+
+  app.post('/api/lab/register', upload.fields([
+    { name: 'photo', maxCount: 1 },
+    { name: 'certificate', maxCount: 1 }
+]), async (req, res) => {
+    try {
+        const {
+            labName,
+            experience,
+            email,
+            phone,
+            password,
+            location,
+            address,
+            startTime,
+            endTime,
+            availableDays
+        } = req.body;
+
+        // Validate required fields
+        if (!startTime || !endTime) {
+            return res.status(400).json({
+                message: 'Start time and end time are required'
+            });
+        }
+
+        // Check if pharmacy with this email already exists
+        const existingLab = await Lab.findOne({ email });
+        if (existingLab) {
+            return res.status(400).json({
+                message: 'A Lab with this email already exists'
+            });
+        }
+
+        // Create pharmacy data object
+        const labData = {
+            role: 'lab',
+            labName,
+            experience: Number(experience),
+            email,
+            phone,
+            password,
+            location,
+            address,
+            photo: req.files?.photo ? path.basename(req.files.photo[0].path): undefined,
+            certificate: req.files?.certificate ? path.basename(req.files.certificate[0].path) : undefined,
+            availability: {
+                days: availableDays ? JSON.parse(availableDays) : [],
+                startTime: startTime,
+                endTime: endTime
+            },
+            isVerified: false,
+            verificationStatus: 'pending',
+            // Ensure pharmacyId is generated
+            LabId: 'LB-' + Date.now() + Math.random().toString(36).substr(2, 5)
+        };
+
+        console.log('Creating lab with data:', {
+            ...labData,
+            password: '[REDACTED]'
+        });
+
+        const lab = new Lab(labData);
+        await lab.save();
+
+        res.status(201).json({
+            message: 'Registration successful. Please wait for admin verification.',
+            pharmacy: {
+                id: lab._id,
+                LabId: lab.LabId,
+                labName: lab.labName,
+                email: lab.email,
+                status: 'pending'
+            }
+        });
+    } catch (error) {
+        console.error('Lab registration error:', error);
+        res.status(500).json({
+            message: 'Registration failed',
+            error: error.message
+        });
+    }
+});
+
+// Login pharmacy
+app.post('/api/lab/login', async (req, res) => {
+try {
+  const { email, password } = req.body;
+
+  const lab = await Lab.findOne({ email, role: 'lab' });
+  if (!lab) {
+    return res.status(401).json({ message: 'Invalid credentials' });
+  }
+
+  if (!lab.isVerified && lab.verificationStatus !== 'verified') {
+    return res.status(401).json({
+      message: 'Account pending verification. Please wait for admin approval.'
+    });
+  }
+
+  const isMatch = await lab.comparePassword(password);
+  if (!isMatch) {
+    return res.status(401).json({ message: 'Invalid credentials' });
+  }
+
+  lab.lastLogin = new Date();
+  await lab.save();
+
+  const token = jwt.sign(
+    { userId: lab._id, role: 'lab' },
+    JWT_SECRET,  // Change this line - use JWT_SECRET instead of process.env.JWT_SECRET
+    { expiresIn: '24h' }
+  );
+
+  res.json({
+    token,
+    lab: {
+      id: lab._id,
+      LabId: lab.LabId,
+      role: 'lab',
+      labName: lab.labName,
+      email: lab.email
+    }
+  });
+} catch (error) {
+  console.error('lab login error:', error);
+  res.status(500).json({ message: 'Login failed', error: error.message });
+}
+});
+
+// Get all pharmacies (admin only)
+app.get('/api/lab/all', authenticateToken, async (req, res) => {
+try {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ message: 'Admin access required' });
+  }
+
+  const labs = await Lab.find({});
+  res.json(labs.map(lab => ({
+    id: lab._id,
+    LabId: lab.LabId,
+    labName: lab.labName,
+    email: lab.email,
+    phone: lab.phone,
+    location: lab.location,
+    address: lab.address,
+    experience: lab.experience,
+    photo: lab.photo,
+    certificate: lab.certificate,
+    availability: lab.availability,
+    status: lab.verificationStatus,
+    lastLogin: lab.lastLogin,
+    createdAt: lab.createdAt
+  })));
+} catch (error) {
+  console.error('Error fetching pharmacies:', error);
+  res.status(500).json({ message: 'Failed to fetch pharmacies', error: error.message });
+}
+});
+
+// Get lab profile
+app.get('/api/lab/profile', authenticateToken, async (req, res) => {
+try {
+  if (req.user.role !== 'lab') {
+    return res.status(403).json({ message: 'lab access required' });
+  }
+
+  const lab = await Lab.findById(req.user.userId);
+  if (!lab) {
+    return res.status(404).json({ message: 'Pharmacy not found' });
+  }
+
+  res.json({
+    id: lab._id,
+    LabId: lab.LabId,
+    role: 'lab',
+    labName: lab.labName,
+    email: lab.email,
+    phone: lab.phone,
+    location: lab.location,
+    address: lab.address,
+    experience: lab.experience,
+    photo: lab.photo,
+    certificate: lab.certificate,
+    availability: lab.availability,
+    status: lab.verificationStatus
+  });
+} catch (error) {
+  console.error('Profile fetch error:', error);
+  res.status(500).json({ message: 'Failed to fetch profile', error: error.message });
+}
+});
+
+// Update pharmacy profile
+app.put('/api/lab/profile', authenticateToken, upload.fields([
+{ name: 'photo', maxCount: 1 },
+{ name: 'certificate', maxCount: 1 }
+]), async (req, res) => {
+try {
+  if (req.user.role !== 'lab') {
+    return res.status(403).json({ message: 'Lab access required' });
+  }
+
+  const lab = await Lab.findById(req.user.userId);
+  if (!lab) {
+    return res.status(404).json({ message: 'Lab not found' });
+  }
+
+  const updateData = {
+    labName: req.body.labName,
+    phone: req.body.phone,
+    location: req.body.location,
+    address: req.body.address,
+    experience: Number(req.body.experience),
+    availability: {
+      days: req.body.availableDays ? JSON.parse(req.body.availableDays) : lab.availability.days,
+      startTime: req.body.startTime || lab.availability.startTime,
+      endTime: req.body.endTime || lab.availability.endTime
+    }
+  };
+
+  if (req.files?.photo) {
+    updateData.photo = path.basename(req.files.photo[0].path);
+  }
+  if (req.files?.certificate) {
+    updateData.certificate = path.basename(req.files.certificate[0].path);
+  }
+
+  const updatedLab = await Lab.findByIdAndUpdate(
+    req.user.userId,
+    { $set: updateData },
+    { new: true }
+  );
+
+  res.json({
+    message: 'Profile updated successfully',
+    pharmacy: {
+      id: updatedLab._id,
+      LabId: updatedLab.LabId,
+      labName: updatedLab.labName,
+      email: updatedLab.email,
+      status: updatedLab.verificationStatus
+    }
+  });
+} catch (error) {
+  console.error('Profile update error:', error);
+  res.status(500).json({ message: 'Failed to update profile', error: error.message });
+}
+});
+
+// Verify pharmacy (admin only)
+app.post('/api/lab/verify', authenticateToken, async (req, res) => {
+try {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ message: 'Admin access required' });
+  }
+
+  const { LabId, status } = req.body;
+  const lab = await Lab.findById(LabId);
+  
+  if (!lab) {
+    return res.status(404).json({ message: 'Pharmacy not found' });
+  }
+
+  lab.isVerified = status === 'verified';
+  lab.verificationStatus = status;
+  await lab.save();
+
+  // Send verification email
+  await sendVerificationEmail(lab.email, status);
+
+  res.json({
+    message: `Pharmacy ${status === 'verified' ? 'verified' : 'rejected'} successfully`,
+    lab: {
+      id: lab._id,
+      status: lab.verificationStatus
+    }
+  });
+} catch (error) {
+  console.error('Verification error:', error);
+  res.status(500).json({ message: 'Verification failed', error: error.message });
+}
+});
+app.get('/api/verified-labs', async (req, res) => {
+  try {
+    // Extract query parameters for filtering
+    const { 
+      location, 
+      experience,
+      startTime,
+      endTime,
+      availableDays
+    } = req.query;
+
+    // Build filter object
+    const filter = {
+      isVerified: true,
+      verificationStatus: 'verified'
+    };
+
+    if (location) {
+      filter.location = location;
+    }
+
+    if (experience) {
+      filter.experience = { $gte: parseInt(experience) };
+    }
+
+    if (availableDays) {
+      filter['availability.days'] = { $all: availableDays.split(',') };
+    }
+
+    if (startTime) {
+      filter['availability.startTime'] = { $lte: startTime };
+    }
+
+    if (endTime) {
+      filter['availability.endTime'] = { $gte: endTime };
+    }
+
+    const verifiedLabs = await Lab.find(filter)
+      .select('-password -certificate')
+      .sort({ experience: -1, createdAt: -1 });
+
+    res.json({
+      success: true,
+      count: verifiedLabs.length,
+      data: verifiedLabs.map(lab => ({
+        id: lab._id,
+        LabId: lab.LabId,
+        labName: lab.labName,
+        experience: lab.experience,
+        email: lab.email,
+        phone: lab.phone,
+        location: lab.location,
+        address: lab.address,
+        photo: lab.photo,
+        availability: {
+          days: lab.availability.days,
+          hours: lab.operatingHours
+        },
+        lastLogin: lab.lastLogin
+      }))
+    });
+
+  } catch (error) {
+    console.error('Error fetching verified labs:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch labs',
+      error: error.message
+    });
+  }
+});
 const inventorySchema = new mongoose.Schema({
+  pharmacyId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Pharmacy',
+    required: true
+  },
   companyName: {
     type: String,
     required: true,
@@ -1058,9 +1575,20 @@ const inventorySchema = new mongoose.Schema({
 });
 
 const Inventory = mongoose.model('Inventory', inventorySchema);
-app.post('/api/inventory', async (req, res) => {
+// Create inventory item (authenticated)
+app.post('/api/inventory', authenticateToken, async (req, res) => {
   try {
-    const newInventory = new Inventory(req.body);
+    // Ensure only pharmacy can add inventory
+    if (req.user.role !== 'pharmacy') {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+
+    const newInventoryData = {
+      ...req.body,
+      pharmacyId: req.user.userId // Add pharmacyId from authenticated user
+    };
+
+    const newInventory = new Inventory(newInventoryData);
     const savedInventory = await newInventory.save();
     res.status(201).json(savedInventory);
   } catch (error) {
@@ -1068,20 +1596,22 @@ app.post('/api/inventory', async (req, res) => {
   }
 });
 
-// Get all inventory items with optional filters
-app.get('/api/inventory', async (req, res) => {
+// Get inventory items for specific pharmacy
+app.get('/api/inventory', authenticateToken, async (req, res) => {
   try {
-    const query = {};
-    
-    // Add filters if they exist in the query params
-    if (req.query.companyName) {
-      query.companyName = new RegExp(req.query.companyName, 'i');
+    // Ensure only pharmacy can view their inventory
+    if (req.user.role !== 'pharmacy') {
+      return res.status(403).json({ message: 'Unauthorized' });
     }
+
+    const query = { pharmacyId: req.user.userId };
+    
+    // Optional filters
     if (req.query.medicineName) {
       query.medicineName = new RegExp(req.query.medicineName, 'i');
     }
-    if (req.query.warehouseName) {
-      query.warehouseName = new RegExp(req.warehouseName, 'i');
+    if (req.query.companyName) {
+      query.companyName = new RegExp(req.query.companyName, 'i');
     }
 
     const inventory = await Inventory.find(query).sort({ createdAt: -1 });
@@ -1092,13 +1622,23 @@ app.get('/api/inventory', async (req, res) => {
 });
 
 // Update inventory item
-app.put('/api/inventory/:id', async (req, res) => {
+app.put('/api/inventory/:id', authenticateToken, async (req, res) => {
   try {
-    const updatedInventory = await Inventory.findByIdAndUpdate(
-      req.params.id,
+    // Ensure only pharmacy can update their inventory
+    if (req.user.role !== 'pharmacy') {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+
+    const updatedInventory = await Inventory.findOneAndUpdate(
+      { _id: req.params.id, pharmacyId: req.user.userId },
       req.body,
       { new: true }
     );
+
+    if (!updatedInventory) {
+      return res.status(404).json({ message: 'Inventory item not found' });
+    }
+
     res.json(updatedInventory);
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -1106,12 +1646,182 @@ app.put('/api/inventory/:id', async (req, res) => {
 });
 
 // Delete inventory item
-app.delete('/api/inventory/:id', async (req, res) => {
+app.delete('/api/inventory/:id', authenticateToken, async (req, res) => {
   try {
-    await Inventory.findByIdAndDelete(req.params.id);
+    // Ensure only pharmacy can delete their inventory
+    if (req.user.role !== 'pharmacy') {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+
+    const deletedInventory = await Inventory.findOneAndDelete({ 
+      _id: req.params.id, 
+      pharmacyId: req.user.userId 
+    });
+
+    if (!deletedInventory) {
+      return res.status(404).json({ message: 'Inventory item not found' });
+    }
+
     res.json({ message: 'Inventory deleted successfully' });
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+});
+const testSchema = new mongoose.Schema({
+  labId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Lab',
+    required: true
+  },
+  testName: {
+    type: String,
+    required: [true, 'Test name is required'],
+    trim: true
+  },
+  price: {
+    type: Number,
+    required: [true, 'Test price is required'],
+    min: 0
+  },
+  resultTime: {
+    type: Number,
+    required: [true, 'Result time is required'],
+    min: 1
+  },
+  description: {
+    type: String,
+    trim: true
+  },
+  isActive: {
+    type: Boolean,
+    default: true
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
+});
+
+const Test = mongoose.model('Test', testSchema);
+
+app.post('/api/lab/tests', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'lab') {
+      return res.status(403).json({ message: 'Lab access required' });
+    }
+
+    const { testName, price, resultTime, description } = req.body;
+    
+    const test = new Test({
+      labId: req.user.userId,
+      testName,
+      price: Number(price),
+      resultTime: Number(resultTime),
+      description
+    });
+
+    await test.save();
+
+    res.status(201).json({
+      message: 'Test added successfully',
+      test
+    });
+  } catch (error) {
+    console.error('Error adding test:', error);
+    res.status(500).json({ message: 'Failed to add test', error: error.message });
+  }
+});
+
+// Get all tests for a lab
+app.get('/api/lab/tests', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'lab') {
+      return res.status(403).json({ message: 'Lab access required' });
+    }
+
+    const tests = await Test.find({ 
+      labId: req.user.userId,
+      isActive: true 
+    }).sort({ createdAt: -1 });
+
+    res.json(tests);
+  } catch (error) {
+    console.error('Error fetching tests:', error);
+    res.status(500).json({ message: 'Failed to fetch tests', error: error.message });
+  }
+});
+
+// Update test
+app.put('/api/lab/tests/:testId', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'lab') {
+      return res.status(403).json({ message: 'Lab access required' });
+    }
+
+    const test = await Test.findOneAndUpdate(
+      { _id: req.params.testId, labId: req.user.userId },
+      { $set: req.body },
+      { new: true }
+    );
+
+    if (!test) {
+      return res.status(404).json({ message: 'Test not found' });
+    }
+
+    res.json({
+      message: 'Test updated successfully',
+      test
+    });
+  } catch (error) {
+    console.error('Error updating test:', error);
+    res.status(500).json({ message: 'Failed to update test', error: error.message });
+  }
+});
+
+// Delete test (soft delete)
+app.delete('/api/lab/tests/:testId', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'lab') {
+      return res.status(403).json({ message: 'Lab access required' });
+    }
+
+    const test = await Test.findOneAndUpdate(
+      { _id: req.params.testId, labId: req.user.userId },
+      { $set: { isActive: false } },
+      { new: true }
+    );
+
+    if (!test) {
+      return res.status(404).json({ message: 'Test not found' });
+    }
+
+    res.json({
+      message: 'Test deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting test:', error);
+    res.status(500).json({ message: 'Failed to delete test', error: error.message });
+  }
+});
+app.get('/api/lab/tests/:labId', async (req, res) => {
+  try {
+    // First find the lab using the LabId
+    const lab = await Lab.findOne({ LabId: req.params.labId });
+    
+    if (!lab) {
+      return res.status(404).json({ message: 'Lab not found' });
+    }
+
+    // Then find tests using the lab's MongoDB _id
+    const tests = await Test.find({ 
+      labId: lab._id,
+      isActive: true 
+    }).sort({ createdAt: -1 });
+
+    res.json(tests);
+  } catch (error) {
+    console.error('Error fetching tests:', error);
+    res.status(500).json({ message: 'Failed to fetch tests', error: error.message });
   }
 });
   // Email template function
