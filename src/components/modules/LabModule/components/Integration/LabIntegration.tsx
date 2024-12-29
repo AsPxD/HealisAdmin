@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Network, Link, Globe, Server, PlusCircle, X, Clock, DollarSign, FileText, Beaker, Trash2, Edit2 } from 'lucide-react';
+import { Network, Link, Globe, Server, PlusCircle, X, Clock,IndianRupee, FileText, Beaker, Trash2, Edit2 } from 'lucide-react';
 
 export const LabIntegration = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -156,7 +156,7 @@ export const LabIntegration = () => {
                   <p className="font-medium text-gray-900">{test.testName}</p>
                   <div className="flex items-center gap-4 mt-1">
                     <span className="text-sm text-gray-600 flex items-center gap-1">
-                      <DollarSign className="w-4 h-4" />
+                      <IndianRupee className="w-4 h-4" />
                       ${test.price}
                     </span>
                     <span className="text-sm text-gray-600 flex items-center gap-1">
@@ -253,7 +253,7 @@ export const LabIntegration = () => {
                 </label>
                 <div className="relative">
                   <span className="absolute left-3 top-2 text-gray-500">
-                    <DollarSign className="w-5 h-5" />
+                    <IndianRupee className="w-5 h-5" />
                   </span>
                   <input
                     type="number"

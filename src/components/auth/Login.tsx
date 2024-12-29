@@ -43,11 +43,11 @@ export function Login({ onLogin, onSwitchToRegister }: LoginProps) {
     }
     try {
       // Use role-specific endpoint for login
-      const endpoint = role === 'pharmacy' 
-  ? 'http://localhost:8000/api/pharmacy/login'
-  : role === 'lab'
-  ? 'http://localhost:8000/api/lab/login' 
-  : 'http://localhost:8000/api/login';
+      const endpoint = role === 'pharmacy'
+        ? 'http://localhost:8000/api/pharmacy/login'
+        : role === 'lab'
+          ? 'http://localhost:8000/api/lab/login'
+          : 'http://localhost:8000/api/login';
 
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -93,12 +93,20 @@ export function Login({ onLogin, onSwitchToRegister }: LoginProps) {
     }
   };
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center px-4">
-      <div className="max-w-md w-full bg-white rounded-lg shadow-xl p-8">
+    <div className="min-h-screen bg-gradient-to-br  flex items-center justify-center px-4">
+      <div className="max-w-md w-full bg-white rounded-lg shadow-2xl p-8">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">MediSync Pro</h1>
+          <div className="flex justify-center items-center">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-activity h-8 w-8 text-[#4CAFEB]">
+              <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+            </svg>
+            <span className="ml-2 text-3xl font-bold bg-gradient-to-r from-[#4CAFEB] to-cyan-500 text-transparent bg-clip-text">
+              Healis
+            </span>
+          </div>
           <p className="text-gray-600 mt-2">Professional Healthcare Management</p>
         </div>
+
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
@@ -231,134 +239,134 @@ export function Register({ onRegister, onSwitchToLogin }: RegisterProps) {
   };
 
   // Modify handleSubmit method
-// Inside the Register function
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  setError('');
+  // Inside the Register function
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
 
-if(role === 'lab'){
-  const formDataToSend = new FormData();
-  formDataToSend.append('role', 'lab');
-  formDataToSend.append('labName', formData.labName);
-  formDataToSend.append('experience', formData.experience);
-  formDataToSend.append('email', formData.email);
-  formDataToSend.append('phone', formData.phone);
-  formDataToSend.append('password', formData.password);
-  formDataToSend.append('location', formData.location);
-  formDataToSend.append('address', formData.address);
-  // Availability details
-  formDataToSend.append('startTime', formData.startTime);
-  formDataToSend.append('endTime', formData.endTime);
-  formDataToSend.append('availableDays', JSON.stringify(formData.availableDays));
-  if (formData.photo) {
-    formDataToSend.append('photo', formData.photo);
-  }
-  if (formData.certificate) {
-    formDataToSend.append('certificate', formData.certificate);
-  }
-  try {
-    console.log('Submitting pharmacy registration with data:', {
-      startTime: formData.startTime,
-      endTime: formData.endTime,
-      availableDays: formData.availableDays
-    });
+    if (role === 'lab') {
+      const formDataToSend = new FormData();
+      formDataToSend.append('role', 'lab');
+      formDataToSend.append('labName', formData.labName);
+      formDataToSend.append('experience', formData.experience);
+      formDataToSend.append('email', formData.email);
+      formDataToSend.append('phone', formData.phone);
+      formDataToSend.append('password', formData.password);
+      formDataToSend.append('location', formData.location);
+      formDataToSend.append('address', formData.address);
+      // Availability details
+      formDataToSend.append('startTime', formData.startTime);
+      formDataToSend.append('endTime', formData.endTime);
+      formDataToSend.append('availableDays', JSON.stringify(formData.availableDays));
+      if (formData.photo) {
+        formDataToSend.append('photo', formData.photo);
+      }
+      if (formData.certificate) {
+        formDataToSend.append('certificate', formData.certificate);
+      }
+      try {
+        console.log('Submitting pharmacy registration with data:', {
+          startTime: formData.startTime,
+          endTime: formData.endTime,
+          availableDays: formData.availableDays
+        });
 
-    const response = await fetch('http://localhost:8000/api/lab/register', {
-      method: 'POST',
-      body: formDataToSend,
-    });
+        const response = await fetch('http://localhost:8000/api/lab/register', {
+          method: 'POST',
+          body: formDataToSend,
+        });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'Registration failed');
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Registration failed');
+        }
+
+        const data = await response.json();
+        setSubmitted(true);
+      } catch (err) {
+        console.error('Registration error:', err);
+        setError(err instanceof Error ? err.message : 'Registration failed. Please try again.');
+      }
     }
 
-    const data = await response.json();
-    setSubmitted(true);
-  } catch (err) {
-    console.error('Registration error:', err);
-    setError(err instanceof Error ? err.message : 'Registration failed. Please try again.');
-  }
-}
-  
-  // In handleSubmit method for pharmacy registration
-  else if (role === 'pharmacy') {
-    const formDataToSend = new FormData();
-    formDataToSend.append('role', 'pharmacy');
-    formDataToSend.append('labName', formData.labName);
-    formDataToSend.append('experience', formData.experience);
-    formDataToSend.append('email', formData.email);
-    formDataToSend.append('phone', formData.phone);
-    formDataToSend.append('password', formData.password);
-    formDataToSend.append('location', formData.location);
-    formDataToSend.append('address', formData.address);
-    // Availability details
-    formDataToSend.append('startTime', formData.startTime);
-    formDataToSend.append('endTime', formData.endTime);
-    formDataToSend.append('availableDays', JSON.stringify(formData.availableDays));
-  
-    // Files
-    if (formData.photo) {
-      formDataToSend.append('photo', formData.photo);
-    }
-    if (formData.certificate) {
-      formDataToSend.append('certificate', formData.certificate);
-    }
+    // In handleSubmit method for pharmacy registration
+    else if (role === 'pharmacy') {
+      const formDataToSend = new FormData();
+      formDataToSend.append('role', 'pharmacy');
+      formDataToSend.append('labName', formData.labName);
+      formDataToSend.append('experience', formData.experience);
+      formDataToSend.append('email', formData.email);
+      formDataToSend.append('phone', formData.phone);
+      formDataToSend.append('password', formData.password);
+      formDataToSend.append('location', formData.location);
+      formDataToSend.append('address', formData.address);
+      // Availability details
+      formDataToSend.append('startTime', formData.startTime);
+      formDataToSend.append('endTime', formData.endTime);
+      formDataToSend.append('availableDays', JSON.stringify(formData.availableDays));
 
-    try {
-      console.log('Submitting pharmacy registration with data:', {
-        startTime: formData.startTime,
-        endTime: formData.endTime,
-        availableDays: formData.availableDays
-      });
-
-      const response = await fetch('http://localhost:8000/api/pharmacy/register', {
-        method: 'POST',
-        body: formDataToSend,
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Registration failed');
+      // Files
+      if (formData.photo) {
+        formDataToSend.append('photo', formData.photo);
+      }
+      if (formData.certificate) {
+        formDataToSend.append('certificate', formData.certificate);
       }
 
-      const data = await response.json();
-      setSubmitted(true);
-    } catch (err) {
-      console.error('Registration error:', err);
-      setError(err instanceof Error ? err.message : 'Registration failed. Please try again.');
-    }
-  }  else {
+      try {
+        console.log('Submitting pharmacy registration with data:', {
+          startTime: formData.startTime,
+          endTime: formData.endTime,
+          availableDays: formData.availableDays
+        });
+
+        const response = await fetch('http://localhost:8000/api/pharmacy/register', {
+          method: 'POST',
+          body: formDataToSend,
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Registration failed');
+        }
+
+        const data = await response.json();
+        setSubmitted(true);
+      } catch (err) {
+        console.error('Registration error:', err);
+        setError(err instanceof Error ? err.message : 'Registration failed. Please try again.');
+      }
+    } else {
       // Handle doctor registration
       // Add doctor-specific fields
       const formDataToSend = new FormData();
       // In the doctor registration section of handleSubmit method
-if (role === 'doctor') {
-  formDataToSend.append('role', 'doctor'); // Add this line
-  formDataToSend.append('name', formData.name);
-  formDataToSend.append('experience', formData.experience);
-  formDataToSend.append('dob', formData.dob);
-  formDataToSend.append('email', formData.email);
-  formDataToSend.append('phone', formData.phone);
-  formDataToSend.append('password', formData.password);
-  formDataToSend.append('location', formData.location);
-  formDataToSend.append('address', formData.address);
-  // Existing code for certificate and photo
-  if (formData.certificate) {
-    formDataToSend.append('certificate', formData.certificate);
-  }
-  if (formData.photo) {
-    formDataToSend.append('photo', formData.photo);
-  }
+      if (role === 'doctor') {
+        formDataToSend.append('role', 'doctor'); // Add this line
+        formDataToSend.append('name', formData.name);
+        formDataToSend.append('experience', formData.experience);
+        formDataToSend.append('dob', formData.dob);
+        formDataToSend.append('email', formData.email);
+        formDataToSend.append('phone', formData.phone);
+        formDataToSend.append('password', formData.password);
+        formDataToSend.append('location', formData.location);
+        formDataToSend.append('address', formData.address);
+        // Existing code for certificate and photo
+        if (formData.certificate) {
+          formDataToSend.append('certificate', formData.certificate);
+        }
+        if (formData.photo) {
+          formDataToSend.append('photo', formData.photo);
+        }
 
-  // Stringify complex fields
-  formDataToSend.append('qualifications', JSON.stringify(formData.qualifications.split(',')));
-  formDataToSend.append('languagesSpoken', JSON.stringify(formData.languagesSpoken.split(',')));
-  formDataToSend.append('availableDays', JSON.stringify(formData.availableDays));
-  formDataToSend.append('startTime', formData.startTime);
-  formDataToSend.append('endTime', formData.endTime);
-  formDataToSend.append('specialities', JSON.stringify(formData.specialities.split(',')));
-}
+        // Stringify complex fields
+        formDataToSend.append('qualifications', JSON.stringify(formData.qualifications.split(',')));
+        formDataToSend.append('languagesSpoken', JSON.stringify(formData.languagesSpoken.split(',')));
+        formDataToSend.append('availableDays', JSON.stringify(formData.availableDays));
+        formDataToSend.append('startTime', formData.startTime);
+        formDataToSend.append('endTime', formData.endTime);
+        formDataToSend.append('specialities', JSON.stringify(formData.specialities.split(',')));
+      }
 
       try {
         const response = await fetch('http://localhost:8000/api/register', {
@@ -381,8 +389,8 @@ if (role === 'doctor') {
 
   if (submitted) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center px-4">
-        <div className="max-w-md w-full bg-white rounded-lg shadow-xl p-8 text-center">
+      <div className="min-h-screen bg-gradient-to-br  flex items-center justify-center px-4">
+        <div className="max-w-md w-full bg-white rounded-lg shadow-2xl p-8 text-center">
           <div className="mb-6">
             <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
               <AlertCircle className="h-8 w-8 text-blue-600" />
@@ -390,7 +398,7 @@ if (role === 'doctor') {
           </div>
           <h2 className="text-2xl font-bold text-gray-900 mb-4">Registration Submitted</h2>
           <p className="text-gray-600 mb-6">
-            Thank you for registering with MediSync Pro. Your application is pending admin verification.
+            Thank you for registering with Healis. Your application is pending admin verification.
             You will receive an email once your account has been verified.
           </p>
           <button
@@ -405,11 +413,18 @@ if (role === 'doctor') {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center px-4 py-8">
-      <div className="max-w-md w-full bg-white rounded-lg shadow-xl p-8">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">MediSync Pro</h1>
-          <p className="text-gray-600 mt-2">Professional Registration</p>
+    <div className="min-h-screen bg-gradient-to-br  flex items-center justify-center px-4 py-8">
+      <div className="max-w-md w-full bg-white rounded-lg shadow-2xl p-8">
+      <div className="text-center mb-8">
+          <div className="flex justify-center items-center">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-activity h-8 w-8 text-[#4CAFEB]">
+              <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+            </svg>
+            <span className="ml-2 text-3xl font-bold bg-gradient-to-r from-[#4CAFEB] to-cyan-500 text-transparent bg-clip-text">
+              Healis
+            </span>
+          </div>
+          <p className="text-gray-600 mt-2">Professional Healthcare Management</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -537,54 +552,54 @@ if (role === 'doctor') {
                 </select>
               </div>
               <div className="flex space-x-4">
-              <div className="w-1/2">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Start Time
-        </label>
-        <input
-          type="time"
-          value={formData.startTime}
-          onChange={(e) => setFormData(prev => ({ 
-            ...prev, 
-            startTime: e.target.value 
-          }))}
-          className="w-full px-4 py-2 border border-gray-300 rounded-md"
-        />
-      </div>
-      <div className="w-1/2">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          End Time
-        </label>
-        <input
-          type="time"
-          value={formData.endTime}
-          onChange={(e) => setFormData(prev => ({ 
-            ...prev, 
-            endTime: e.target.value 
-          }))}
-          className="w-full px-4 py-2 border border-gray-300 rounded-md"
-        />
-      </div>
-      
+                <div className="w-1/2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Start Time
+                  </label>
+                  <input
+                    type="time"
+                    value={formData.startTime}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      startTime: e.target.value
+                    }))}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md"
+                  />
+                </div>
+                <div className="w-1/2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    End Time
+                  </label>
+                  <input
+                    type="time"
+                    value={formData.endTime}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      endTime: e.target.value
+                    }))}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md"
+                  />
+                </div>
+
               </div>
               <div>
-      <label className="block text-sm font-medium text-gray-700 mb-2">
-        Specialities
-      </label>
-      <input
-        type="text"
-        value={formData.specialities}
-        onChange={(e) => setFormData(prev => ({
-          ...prev,
-          specialities: e.target.value
-        }))}
-        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        placeholder="Cardiology, General Medicine, Pediatrics"
-      />
-      <p className="mt-1 text-sm text-gray-500">
-        Enter specialities separated by commas
-      </p>
-    </div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Specialities
+                </label>
+                <input
+                  type="text"
+                  value={formData.specialities}
+                  onChange={(e) => setFormData(prev => ({
+                    ...prev,
+                    specialities: e.target.value
+                  }))}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Cardiology, General Medicine, Pediatrics"
+                />
+                <p className="mt-1 text-sm text-gray-500">
+                  Enter specialities separated by commas
+                </p>
+              </div>
             </>
           )}
 
@@ -622,37 +637,37 @@ if (role === 'doctor') {
           )}
           {role === 'lab' && (
             <>
-            <div className="flex space-x-4">
-              <div className="w-1/2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Start Time
-                </label>
-                <input
-                  type="time"
-                  value={formData.startTime}
-                  onChange={(e) => setFormData(prev => ({ 
-                    ...prev, 
-                    startTime: e.target.value 
-                  }))}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md"
-                />
+              <div className="flex space-x-4">
+                <div className="w-1/2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Start Time
+                  </label>
+                  <input
+                    type="time"
+                    value={formData.startTime}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      startTime: e.target.value
+                    }))}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md"
+                  />
+                </div>
+                <div className="w-1/2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    End Time
+                  </label>
+                  <input
+                    type="time"
+                    value={formData.endTime}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      endTime: e.target.value
+                    }))}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md"
+                  />
+                </div>
               </div>
-              <div className="w-1/2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  End Time
-                </label>
-                <input
-                  type="time"
-                  value={formData.endTime}
-                  onChange={(e) => setFormData(prev => ({ 
-                    ...prev, 
-                    endTime: e.target.value 
-                  }))}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md"
-                />
-              </div>
-            </div>
-            <div>
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Available Days
                 </label>
@@ -670,56 +685,56 @@ if (role === 'doctor') {
                   ))}
                 </select>
               </div>
-            <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Upload Certificate
-            </label>
-            <div className="relative">
-              <FileText className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input
-                type="file"
-                onChange={(e) => handleFileChange(e, 'certificate')}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                accept=".pdf,.jpg,.jpeg,.png"
-              />
-            </div>
-          </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Upload Certificate
+                </label>
+                <div className="relative">
+                  <FileText className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <input
+                    type="file"
+                    onChange={(e) => handleFileChange(e, 'certificate')}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                  />
+                </div>
+              </div>
 
-          </>
+            </>
           )}
           {role === 'pharmacy' && (
-          <>
-            <div className="flex space-x-4">
-              <div className="w-1/2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Start Time
-                </label>
-                <input
-                  type="time"
-                  value={formData.startTime}
-                  onChange={(e) => setFormData(prev => ({ 
-                    ...prev, 
-                    startTime: e.target.value 
-                  }))}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md"
-                />
+            <>
+              <div className="flex space-x-4">
+                <div className="w-1/2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Start Time
+                  </label>
+                  <input
+                    type="time"
+                    value={formData.startTime}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      startTime: e.target.value
+                    }))}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md"
+                  />
+                </div>
+                <div className="w-1/2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    End Time
+                  </label>
+                  <input
+                    type="time"
+                    value={formData.endTime}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      endTime: e.target.value
+                    }))}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md"
+                  />
+                </div>
               </div>
-              <div className="w-1/2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  End Time
-                </label>
-                <input
-                  type="time"
-                  value={formData.endTime}
-                  onChange={(e) => setFormData(prev => ({ 
-                    ...prev, 
-                    endTime: e.target.value 
-                  }))}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md"
-                />
-              </div>
-            </div>
-            <div>
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Available Days
                 </label>
@@ -737,40 +752,40 @@ if (role === 'doctor') {
                   ))}
                 </select>
               </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Upload Certificate
-              </label>
-              <div className="relative">
-                <FileText className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <input
-                  type="file"
-                  onChange={(e) => handleFileChange(e, 'certificate')}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  accept=".pdf,.jpg,.jpeg,.png"
-                />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Upload Certificate
+                </label>
+                <div className="relative">
+                  <FileText className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <input
+                    type="file"
+                    onChange={(e) => handleFileChange(e, 'certificate')}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                  />
+                </div>
               </div>
-            </div>
-          </>
-        )}
+            </>
+          )}
 
           {/* Common fields for all roles */}
           {/* New Address Field */}
           <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Address
-                </label>
-                <input
-                  type="text"
-                  value={formData.address}
-                  onChange={(e) => setFormData(prev => ({
-                    ...prev,
-                    address: e.target.value
-                  }))}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md"
-                  placeholder="MD, MBBS, Specialization"
-                />
-              </div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Address
+            </label>
+            <input
+              type="text"
+              value={formData.address}
+              onChange={(e) => setFormData(prev => ({
+                ...prev,
+                address: e.target.value
+              }))}
+              className="w-full px-4 py-2 border border-gray-300 rounded-md"
+              placeholder="MD, MBBS, Specialization"
+            />
+          </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Email

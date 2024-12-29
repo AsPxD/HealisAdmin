@@ -22,9 +22,9 @@ const modules = [
   { id: 'reports', label: 'Reports', icon: FileText, component: ReportManagement },
   { id: 'ai-analytics', label: 'AI Analytics', icon: Brain, component: AIAnalytics },
   { id: 'integration', label: 'Lab Network', icon: Network, component: LabIntegration },
-  { id: 'quality', label: 'Quality Control', icon: ShieldCheck, component: LabProfile },
-  { id: 'inventory', label: 'Inventory', icon: Package, component: InventoryTracker },
-  { id: 'research', label: 'Research', icon: Microscope, component: PatientSearch }
+  { id: 'quality', label: 'My Profile', icon: ShieldCheck, component: LabProfile },
+  { id: 'inventory', label: 'Bookings', icon: Package, component: InventoryTracker },
+  { id: 'research', label: 'Patient Records', icon: Microscope, component: PatientSearch }
 ];
 
 export function LabModule({ user, onLogout }) {
