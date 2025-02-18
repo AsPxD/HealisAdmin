@@ -7,12 +7,11 @@ const jwt = require('jsonwebtoken');
 const bodyparser = require('body-parser');
 const nodemailer = require('nodemailer');
 const fs = require('fs');
-
 const app = express();
 
-// Constants
-const JWT_SECRET = process.env.JWT_SECRET || 'healis-secret-key';
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://dhruvmehta2004:0Tb9LfHuX0jTPQsW@cluster0.bmpyuvt.mongodb.net/HEALIS-ADMIN';
+// Constants with placeholders
+const JWT_SECRET = process.env.JWT_SECRET || 'YOUR_JWT_SECRET';
+const MONGODB_URI = process.env.MONGODB_URI || 'YOUR_MONGODB_CONNECTION_STRING';
 const PORT = process.env.PORT || 8000;
 
 // Middleware
@@ -26,10 +25,20 @@ app.use(cors());
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: 'care.healis@gmail.com',
-    pass: 'mmij azgt thds pxya'
+    user: process.env.EMAIL_USER || 'YOUR_EMAIL_ADDRESS',
+    pass: process.env.EMAIL_PASSWORD || 'YOUR_EMAIL_PASSWORD'
   }
-})
+});
+
+// MongoDB connection
+mongoose.connect(MONGODB_URI)
+  .then(() => console.log('Connected to MongoDB'))
+  .catch(err => console.error('Failed to connect to MongoDB', err));
+
+// Start server
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
 
 // MongoDB User Schema
 const userSchema = new mongoose.Schema({
